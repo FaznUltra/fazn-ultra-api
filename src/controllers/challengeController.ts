@@ -93,9 +93,11 @@ export const getChallengeById = asyncHandler(async (req: AuthRequest, res: Respo
     return;
   }
 
-  // Public challenges can be viewed by anyone
-  // Direct and Friends challenges only by participants
-  if (challenge.challengeType !== 'PUBLIC') {
+  // Authorization logic:
+  // - PUBLIC: Anyone can view
+  // - DIRECT: Only creator and designated acceptor
+  // - FRIENDS: Creator, acceptor, or any friend of creator
+  if (challenge.challengeType === 'DIRECT') {
     const isParticipant = 
       challenge.creator._id.toString() === userId?.toString() ||
       challenge.acceptor?._id.toString() === userId?.toString();
@@ -106,6 +108,28 @@ export const getChallengeById = asyncHandler(async (req: AuthRequest, res: Respo
         message: 'You are not authorized to view this challenge'
       });
       return;
+    }
+  } else if (challenge.challengeType === 'FRIENDS') {
+    const isParticipant = 
+      challenge.creator._id.toString() === userId?.toString() ||
+      challenge.acceptor?._id.toString() === userId?.toString();
+    
+    if (!isParticipant) {
+      // Check if user is friends with creator
+      const friendship = await Friendship.findOne({
+        $or: [
+          { requester: userId, recipient: challenge.creator._id, status: 'ACCEPTED' },
+          { requester: challenge.creator._id, recipient: userId, status: 'ACCEPTED' }
+        ]
+      });
+
+      if (!friendship) {
+        res.status(403).json({
+          success: false,
+          message: 'You are not authorized to view this challenge'
+        });
+        return;
+      }
     }
   }
 
