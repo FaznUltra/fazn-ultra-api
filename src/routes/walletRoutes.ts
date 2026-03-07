@@ -4,7 +4,8 @@ import {
   initializeDeposit,
   verifyDeposit,
   getTransactions,
-  getTransaction
+  getTransaction,
+  getTransactionAnalytics
 } from '../controllers/walletController';
 import { depositValidator } from '../validators/walletValidator';
 import { protect } from '../middlewares/auth';
@@ -16,7 +17,8 @@ router.use(protect);
 router.get('/', getWallet);
 router.post('/deposit/initialize', depositValidator, initializeDeposit);
 router.get('/deposit/verify/:reference', verifyDeposit);
-router.get('/transactions', getTransactions);
+router.get('/transactions/analytics', getTransactionAnalytics);
 router.get('/transactions/:id', getTransaction);
+router.get('/transactions', getTransactions);
 
 export default router;

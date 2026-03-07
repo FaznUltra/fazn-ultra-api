@@ -247,3 +247,69 @@ export const getTransaction = asyncHandler(async (req: AuthRequest, res: Respons
     data: { transaction }
   });
 });
+
+export const getTransactionAnalytics = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { period = '7d' } = req.query;
+
+  let startDate = new Date();
+  switch (period) {
+    case '7d':
+      startDate.setDate(startDate.getDate() - 7);
+      break;
+    case '30d':
+      startDate.setDate(startDate.getDate() - 30);
+      break;
+    case '90d':
+      startDate.setDate(startDate.getDate() - 90);
+      break;
+    case '1y':
+      startDate.setFullYear(startDate.getFullYear() - 1);
+      break;
+    default:
+      startDate.setDate(startDate.getDate() - 7);
+  }
+
+  const transactions = await Transaction.find({
+    userId: req.user?._id,
+    createdAt: { $gte: startDate },
+    status: 'COMPLETED'
+  }).sort({ createdAt: 1 });
+
+  // Group by date
+  const dailyData: any = {};
+  transactions.forEach(tx => {
+    const date = tx.createdAt.toISOString().split('T')[0];
+    if (!dailyData[date]) {
+      dailyData[date] = { date, deposits: 0, withdrawals: 0, balance: 0 };
+    }
+    
+    if (tx.type === 'DEPOSIT' || tx.type === 'WINNING_CREDIT' || tx.type === 'STAKE_REFUND' || tx.type === 'WITNESS_REWARD') {
+      dailyData[date].deposits += tx.amount;
+    } else if (tx.type === 'WITHDRAWAL' || tx.type === 'STAKE_DEBIT' || tx.type === 'PLATFORM_FEE') {
+      dailyData[date].withdrawals += tx.amount;
+    }
+    dailyData[date].balance = tx.balanceAfter;
+  });
+
+  const chartData = Object.values(dailyData);
+
+  // Calculate summary stats
+  const summary = {
+    totalDeposits: transactions
+      .filter(tx => tx.type === 'DEPOSIT' || tx.type === 'WINNING_CREDIT' || tx.type === 'STAKE_REFUND' || tx.type === 'WITNESS_REWARD')
+      .reduce((sum, tx) => sum + tx.amount, 0),
+    totalWithdrawals: transactions
+      .filter(tx => tx.type === 'WITHDRAWAL' || tx.type === 'STAKE_DEBIT' || tx.type === 'PLATFORM_FEE')
+      .reduce((sum, tx) => sum + tx.amount, 0),
+    transactionCount: transactions.length,
+  };
+
+  res.status(200).json({
+    success: true,
+    data: {
+      chartData,
+      summary,
+      period
+    }
+  });
+});
