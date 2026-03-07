@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { register, login, getMe } from '../controllers/authController';
+import { register, login, getMe, refreshToken } from '../controllers/authController';
 import { googleAuth, googleAuthCallback } from '../controllers/googleAuthController';
 import { forgotPassword, verifyResetOTP, resetPassword } from '../controllers/passwordResetController';
 import { registerValidator, loginValidator } from '../validators/authValidator';
@@ -10,6 +10,7 @@ const router = Router();
 
 router.post('/register', registerValidator, register);
 router.post('/login', loginValidator, login);
+router.post('/refresh-token', refreshToken);
 router.get('/me', protect, getMe);
 
 router.get('/google', googleAuth);

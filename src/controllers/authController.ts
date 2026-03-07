@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
+import jwt from 'jsonwebtoken';
 import User from '../models/User';
 import Wallet from '../models/Wallet';
 import { generateToken, generateRefreshToken } from '../utils/jwt';
@@ -175,4 +176,57 @@ export const getMe = asyncHandler(async (req: AuthRequest, res: Response) => {
       }
     }
   });
+});
+
+export const refreshToken = asyncHandler(async (req: Request, res: Response) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    res.status(401).json({
+      success: false,
+      message: 'Refresh token is required'
+    });
+    return;
+  }
+
+  try {
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!) as {
+      userId: string;
+      email: string;
+      displayName: string;
+    };
+
+    const user = await User.findById(decoded.userId);
+
+    if (!user || !user.isActive) {
+      res.status(401).json({
+        success: false,
+        message: 'Invalid refresh token'
+      });
+      return;
+    }
+
+    const payload = {
+      userId: user._id,
+      email: user.email,
+      displayName: user.displayName
+    };
+
+    const newToken = generateToken(payload);
+    const newRefreshToken = generateRefreshToken(payload);
+
+    res.status(200).json({
+      success: true,
+      message: 'Token refreshed successfully',
+      data: {
+        token: newToken,
+        refreshToken: newRefreshToken
+      }
+    });
+  } catch (error) {
+    res.status(401).json({
+      success: false,
+      message: 'Invalid or expired refresh token'
+    });
+  }
 });
