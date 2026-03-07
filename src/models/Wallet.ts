@@ -17,6 +17,8 @@ export interface IWallet extends Document {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  getBalance(currencyCode?: Currency): number;
+  updateBalance(currencyCode: Currency, amount: number): Promise<void>;
 }
 
 const currencySchema = new Schema<ICurrency>(

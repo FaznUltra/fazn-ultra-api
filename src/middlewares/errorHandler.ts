@@ -8,7 +8,7 @@ interface CustomError extends Error {
   errors?: Record<string, { message: string }>;
 }
 
-const errorHandler = (err: CustomError, req: Request, res: Response, _next: NextFunction) => {
+const errorHandler = (err: CustomError, _req: Request, res: Response, _next: NextFunction) => {
   const error: CustomError = { ...err };
   error.message = err.message;
 
