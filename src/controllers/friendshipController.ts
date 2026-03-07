@@ -271,19 +271,11 @@ export const getFriends = asyncHandler(async (req: AuthRequest, res: Response) =
       { recipient: req.user?._id, status: 'ACCEPTED' }
     ]
   })
-    .populate('requester', 'firstName lastName displayName profileImage')
-    .populate('recipient', 'firstName lastName displayName profileImage')
+    .populate('requester', 'firstName lastName displayName profileImage isVerified')
+    .populate('recipient', 'firstName lastName displayName profileImage isVerified')
     .limit(Number(limit))
     .skip((Number(page) - 1) * Number(limit))
     .sort({ createdAt: -1 });
-
-  const friends = friendships.map((friendship) => {
-    const friend =
-      friendship.requester._id.toString() === req.user?._id.toString()
-        ? friendship.recipient
-        : friendship.requester;
-    return friend;
-  });
 
   const total = await Friendship.countDocuments({
     $or: [
@@ -295,7 +287,7 @@ export const getFriends = asyncHandler(async (req: AuthRequest, res: Response) =
   res.status(200).json({
     success: true,
     data: {
-      friends,
+      friends: friendships,
       pagination: {
         page: Number(page),
         limit: Number(limit),
@@ -313,7 +305,8 @@ export const getPendingRequests = asyncHandler(async (req: AuthRequest, res: Res
     recipient: req.user?._id,
     status: 'PENDING'
   })
-    .populate('requester', 'firstName lastName displayName profileImage')
+    .populate('requester', 'firstName lastName displayName profileImage isVerified')
+    .populate('recipient', 'firstName lastName displayName profileImage isVerified')
     .limit(Number(limit))
     .skip((Number(page) - 1) * Number(limit))
     .sort({ createdAt: -1 });
@@ -344,7 +337,8 @@ export const getSentRequests = asyncHandler(async (req: AuthRequest, res: Respon
     requester: req.user?._id,
     status: 'PENDING'
   })
-    .populate('recipient', 'firstName lastName displayName profileImage')
+    .populate('recipient', 'firstName lastName displayName profileImage isVerified')
+    .populate('requester', 'firstName lastName displayName profileImage isVerified')
     .limit(Number(limit))
     .skip((Number(page) - 1) * Number(limit))
     .sort({ createdAt: -1 });
