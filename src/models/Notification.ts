@@ -3,7 +3,7 @@ import mongoose, { Schema, Document, Types } from 'mongoose';
 export interface INotification extends Document {
   _id: Types.ObjectId;
   userId: Types.ObjectId;
-  type: 'challenge' | 'friend_request' | 'challenge_accepted' | 'challenge_completed' | 'payment' | 'system';
+  type: 'CHALLENGE' | 'FRIEND_REQUEST' | 'FRIEND_ACCEPT' | 'CHALLENGE_ACCEPTED' | 'CHALLENGE_COMPLETED' | 'PAYMENT' | 'SYSTEM';
   title: string;
   message: string;
   data: {
@@ -27,7 +27,7 @@ const notificationSchema = new Schema<INotification>(
     },
     type: {
       type: String,
-      enum: ['challenge', 'friend_request', 'challenge_accepted', 'challenge_completed', 'payment', 'system'],
+      enum: ['CHALLENGE', 'FRIEND_REQUEST', 'FRIEND_ACCEPT', 'CHALLENGE_ACCEPTED', 'CHALLENGE_COMPLETED', 'PAYMENT', 'SYSTEM'],
       required: true
     },
     title: {

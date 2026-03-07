@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../types';
 import Friendship from '../models/Friendship';
 import User from '../models/User';
+import Notification from '../models/Notification';
 import asyncHandler from '../utils/asyncHandler';
 import mongoose from 'mongoose';
 
@@ -73,6 +74,19 @@ export const sendFriendRequest = asyncHandler(async (req: AuthRequest, res: Resp
     status: 'PENDING'
   });
 
+  // Create notification for recipient
+  await Notification.create({
+    userId: recipientId,
+    type: 'FRIEND_REQUEST',
+    title: 'New Friend Request',
+    message: `${req.user?.displayName} sent you a friend request`,
+    data: {
+      friendshipId: friendship._id.toString(),
+      requesterId: req.user?._id.toString(),
+      requesterName: req.user?.displayName
+    }
+  });
+
   res.status(201).json({
     success: true,
     message: 'Friend request sent successfully',
@@ -111,6 +125,19 @@ export const acceptFriendRequest = asyncHandler(async (req: AuthRequest, res: Re
 
   friendship.status = 'ACCEPTED';
   await friendship.save();
+
+  // Create notification for requester
+  await Notification.create({
+    userId: friendship.requester,
+    type: 'FRIEND_ACCEPT',
+    title: 'Friend Request Accepted',
+    message: `${req.user?.displayName} accepted your friend request`,
+    data: {
+      friendshipId: friendship._id.toString(),
+      accepterId: req.user?._id.toString(),
+      accepterName: req.user?.displayName
+    }
+  });
 
   res.status(200).json({
     success: true,
