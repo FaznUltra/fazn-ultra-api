@@ -117,8 +117,14 @@ export const verifyEmail = asyncHandler(async (req: AuthRequest, res: Response) 
     data: {
       user: {
         id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        displayName: user.displayName,
         email: user.email,
-        isVerified: user.isVerified
+        profileImage: user.profileImage,
+        isVerified: user.isVerified,
+        streamingAccounts: user.streamingAccounts,
+        stats: user.stats
       }
     }
   });
