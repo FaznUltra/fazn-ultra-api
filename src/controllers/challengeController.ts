@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import Challenge, { GameType, GameName, Platform, ChallengeType } from '../models/Challenge';
+import Challenge, { GameType, GameName, Platform } from '../models/Challenge';
 import User from '../models/User';
 import Wallet from '../models/Wallet';
 import Transaction from '../models/Transaction';
@@ -9,7 +9,7 @@ import { AuthRequest } from '../types';
 import asyncHandler from '../utils/asyncHandler';
 
 // Get available games configuration
-export const getAvailableGames = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const getAvailableGames = asyncHandler(async (_req: AuthRequest, res: Response) => {
   const games = [
     {
       gameType: 'FOOTBALL' as GameType,
@@ -838,7 +838,6 @@ export const settleChallenge = asyncHandler(async (req: AuthRequest, res: Respon
   }
 
   // Calculate payouts
-  const platformFeeAmount = challenge.totalPot * challenge.platformFee;
   const witnessFeeAmount = challenge.totalPot * challenge.witnessFee;
   const winnerPayout = challenge.winnerPayout;
 
