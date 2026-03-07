@@ -181,6 +181,121 @@ window.location.href = '/dashboard';
 
 ---
 
+## Password Reset
+
+### Forgot Password
+```http
+POST /auth/forgot-password
+```
+
+**Description:**
+Sends a 6-digit OTP code to the user's email for password reset.
+
+**Request Body:**
+```json
+{
+  "email": "john@example.com"
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Password reset code sent to your email",
+  "data": {
+    "email": "john@example.com",
+    "expiresIn": "10 minutes"
+  }
+}
+```
+
+**Notes:**
+- Returns success even if email doesn't exist (security best practice)
+- OTP is valid for 10 minutes
+- Previous unused password reset OTPs are invalidated
+- Email sent contains 6-digit code
+
+---
+
+### Verify Reset OTP
+```http
+POST /auth/verify-reset-otp
+```
+
+**Description:**
+Verifies the password reset OTP before allowing password change.
+
+**Request Body:**
+```json
+{
+  "email": "john@example.com",
+  "otp": "123456"
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "OTP verified successfully",
+  "data": {
+    "email": "john@example.com",
+    "verified": true
+  }
+}
+```
+
+**Validation:**
+- OTP must be 6 digits
+- OTP must not be expired
+- OTP must not be already used
+
+---
+
+### Reset Password
+```http
+POST /auth/reset-password
+```
+
+**Description:**
+Resets the user's password using the verified OTP.
+
+**Request Body:**
+```json
+{
+  "email": "john@example.com",
+  "otp": "123456",
+  "newPassword": "NewPassword123"
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Password reset successfully",
+  "data": {
+    "email": "john@example.com"
+  }
+}
+```
+
+**Validation:**
+- `email`: Required, valid email format
+- `otp`: Required, 6 digits
+- `newPassword`: Required, min 8 chars, must contain uppercase, lowercase, and number
+- OTP must be valid and not expired
+- OTP is marked as used after successful reset
+
+**Flow:**
+1. User requests password reset → OTP sent to email
+2. User enters OTP → OTP verified
+3. User enters new password → Password updated
+4. User can now login with new password
+
+---
+
 ## Email Verification (OTP)
 
 ### Send Verification OTP
