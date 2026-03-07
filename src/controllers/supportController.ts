@@ -8,11 +8,18 @@ export const getSupportTickets = asyncHandler(async (req: AuthRequest, res: Resp
   const userId = req.user?._id;
   const { status, limit = 20, page = 1 } = req.query;
 
+  console.log('🎫 SUPPORT TICKETS REQUEST:');
+  console.log('- User ID:', userId);
+  console.log('- Status filter:', status);
+  console.log('- Page:', page, 'Limit:', limit);
+
   const query: any = { userId };
 
   if (status) {
     query.status = status;
   }
+
+  console.log('- MongoDB Query:', query);
 
   const skip = (Number(page) - 1) * Number(limit);
 
@@ -22,6 +29,11 @@ export const getSupportTickets = asyncHandler(async (req: AuthRequest, res: Resp
     .skip(skip);
 
   const total = await SupportTicket.countDocuments(query);
+
+  console.log('📊 SUPPORT TICKETS RESULT:');
+  console.log('- Total tickets found:', total);
+  console.log('- Tickets returned:', tickets.length);
+  console.log('- Tickets:', JSON.stringify(tickets, null, 2));
 
   res.json({
     success: true,
