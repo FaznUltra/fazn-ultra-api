@@ -227,6 +227,12 @@ export const createChallenge = asyncHandler(async (req: AuthRequest, res: Respon
   // Determine game period based on game type
   const gamePeriod = (gameType === 'FOOTBALL' || gameType === 'SOCCER') ? 10 : 15;
 
+  // Calculate financial values
+  const platformFee = 0.05; // 5%
+  const witnessFee = 0.02; // 2%
+  const totalPot = stakeAmount * 2; // Both players stake
+  const winnerPayout = totalPot * (1 - platformFee - witnessFee); // 93% of pot
+
   // Create challenge
   const challengeData: any = {
     creator: userId,
@@ -237,6 +243,10 @@ export const createChallenge = asyncHandler(async (req: AuthRequest, res: Respon
     challengeType,
     stakeAmount,
     currency,
+    platformFee,
+    witnessFee,
+    totalPot,
+    winnerPayout,
     acceptanceDueDate: acceptanceDate,
     matchStartTime: startTime,
     gamePeriod,
