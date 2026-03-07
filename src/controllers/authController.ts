@@ -59,7 +59,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     message: 'User registered successfully',
     data: {
       user: {
-        id: user._id,
+        _id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
         displayName: user.displayName,
@@ -131,7 +131,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     message: 'Login successful',
     data: {
       user: {
-        id: user._id,
+        _id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
         displayName: user.displayName,
@@ -162,7 +162,7 @@ export const getMe = asyncHandler(async (req: AuthRequest, res: Response) => {
     success: true,
     data: {
       user: {
-        id: user._id,
+        _id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
         displayName: user.displayName,
