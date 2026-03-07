@@ -53,12 +53,18 @@ const userSchema = new Schema<IUser>(
       youtube: {
         channelUrl: { type: String, default: null },
         channelId: { type: String, default: null },
-        verified: { type: Boolean, default: false }
+        channelName: { type: String, default: null },
+        verified: { type: Boolean, default: false },
+        accessToken: { type: String, default: null, select: false },
+        refreshToken: { type: String, default: null, select: false }
       },
       twitch: {
         channelUrl: { type: String, default: null },
         channelId: { type: String, default: null },
-        verified: { type: Boolean, default: false }
+        channelName: { type: String, default: null },
+        verified: { type: Boolean, default: false },
+        accessToken: { type: String, default: null, select: false },
+        refreshToken: { type: String, default: null, select: false }
       }
     },
     stats: {

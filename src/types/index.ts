@@ -14,11 +14,13 @@ export interface IUser extends Document {
     youtube: {
       channelUrl: string | null;
       channelId: string | null;
+      channelName: string | null;
       verified: boolean;
     };
     twitch: {
       channelUrl: string | null;
       channelId: string | null;
+      channelName: string | null;
       verified: boolean;
     };
   };

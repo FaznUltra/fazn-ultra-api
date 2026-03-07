@@ -56,12 +56,14 @@ import walletRoutes from './routes/walletRoutes';
 import friendshipRoutes from './routes/friendshipRoutes';
 import userRoutes from './routes/userRoutes';
 import otpRoutes from './routes/otpRoutes';
+import streamingRoutes from './routes/streamingRoutes';
 
 app.use(`/api/${process.env.API_VERSION || 'v1'}/auth`, authRoutes);
 app.use(`/api/${process.env.API_VERSION || 'v1'}/wallet`, walletRoutes);
 app.use(`/api/${process.env.API_VERSION || 'v1'}/friendships`, friendshipRoutes);
 app.use(`/api/${process.env.API_VERSION || 'v1'}/users`, userRoutes);
 app.use(`/api/${process.env.API_VERSION || 'v1'}/otp`, otpRoutes);
+app.use(`/api/${process.env.API_VERSION || 'v1'}/streaming`, streamingRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
