@@ -1,10 +1,17 @@
 import { Router } from 'express';
 import {
+  getAvailableGames,
   getChallengeHistory,
   getChallengeById,
+  getPublicChallenges,
+  getFriendsChallenges,
   createChallenge,
   acceptChallenge,
+  rejectChallenge,
   cancelChallenge,
+  updateStreamingLink,
+  submitResult,
+  settleChallenge,
   getChallengeStats
 } from '../controllers/challengeController';
 import { protect } from '../middlewares/auth';
@@ -14,11 +21,27 @@ const router = Router();
 // All routes require authentication
 router.use(protect);
 
-router.get('/', getChallengeHistory);
+// Get available games (no auth needed but included for consistency)
+router.get('/games', getAvailableGames);
+
+// Get challenges
+router.get('/history', getChallengeHistory);
+router.get('/public', getPublicChallenges);
+router.get('/friends', getFriendsChallenges);
 router.get('/stats', getChallengeStats);
 router.get('/:id', getChallengeById);
+
+// Create challenge
 router.post('/', createChallenge);
+
+// Challenge actions
 router.post('/:id/accept', acceptChallenge);
+router.post('/:id/reject', rejectChallenge);
 router.post('/:id/cancel', cancelChallenge);
+router.patch('/:id/streaming-link', updateStreamingLink);
+
+// Result submission and settlement
+router.post('/:id/result', submitResult);
+router.post('/:id/settle', settleChallenge);
 
 export default router;
