@@ -268,8 +268,17 @@ export const createChallenge = asyncHandler(async (req: AuthRequest, res: Respon
 
   const challenge = await Challenge.create(challengeData);
 
+  // Get balance before deduction
+  const balanceBefore = wallet.getBalance(currency);
+  
   // Deduct stake from creator's wallet
   await wallet.updateBalance(currency, -stakeAmount);
+
+  // Get balance after deduction
+  const balanceAfter = wallet.getBalance(currency);
+
+  // Generate unique transaction reference
+  const reference = `STAKE_${challenge._id}_${Date.now()}`;
 
   // Create transaction record
   await Transaction.create({
@@ -279,7 +288,10 @@ export const createChallenge = asyncHandler(async (req: AuthRequest, res: Respon
     amount: stakeAmount,
     currency,
     status: 'COMPLETED',
+    reference,
     description: `Stake for ${gameName} challenge`,
+    balanceBefore,
+    balanceAfter,
     metadata: { challengeId: challenge._id }
   });
 
@@ -462,6 +474,15 @@ export const acceptChallenge = asyncHandler(async (req: AuthRequest, res: Respon
     return;
   }
 
+  // Require streaming link when accepting
+  if (!acceptorStreamingLink || !acceptorStreamingLink.platform || !acceptorStreamingLink.url) {
+    res.status(400).json({
+      success: false,
+      message: 'Streaming link is required to accept a challenge'
+    });
+    return;
+  }
+
   // Check if acceptor has sufficient balance
   const wallet = await Wallet.findOne({ userId });
   if (!wallet || wallet.getBalance(challenge.currency as any) < challenge.stakeAmount) {
@@ -472,8 +493,17 @@ export const acceptChallenge = asyncHandler(async (req: AuthRequest, res: Respon
     return;
   }
 
+  // Get balance before deduction
+  const balanceBefore = wallet.getBalance(challenge.currency as any);
+  
   // Deduct stake from acceptor's wallet
   await wallet.updateBalance(challenge.currency as any, -challenge.stakeAmount);
+
+  // Get balance after deduction
+  const balanceAfter = wallet.getBalance(challenge.currency as any);
+
+  // Generate unique transaction reference
+  const reference = `STAKE_${challenge._id}_${userId}_${Date.now()}`;
 
   // Create transaction record
   await Transaction.create({
@@ -483,7 +513,10 @@ export const acceptChallenge = asyncHandler(async (req: AuthRequest, res: Respon
     amount: challenge.stakeAmount,
     currency: challenge.currency,
     status: 'COMPLETED',
+    reference,
     description: `Stake for accepting ${challenge.gameName} challenge`,
+    balanceBefore,
+    balanceAfter,
     metadata: { challengeId: challenge._id }
   });
 
@@ -564,7 +597,10 @@ export const rejectChallenge = asyncHandler(async (req: AuthRequest, res: Respon
   // Refund creator's stake
   const creatorWallet = await Wallet.findOne({ userId: challenge.creator });
   if (creatorWallet) {
+    const balanceBefore = creatorWallet.getBalance(challenge.currency as any);
     await creatorWallet.updateBalance(challenge.currency as any, challenge.stakeAmount);
+    const balanceAfter = creatorWallet.getBalance(challenge.currency as any);
+    const reference = `REFUND_${challenge._id}_${challenge.creator}_${Date.now()}`;
 
     await Transaction.create({
       userId: challenge.creator,
@@ -573,7 +609,10 @@ export const rejectChallenge = asyncHandler(async (req: AuthRequest, res: Respon
       amount: challenge.stakeAmount,
       currency: challenge.currency,
       status: 'COMPLETED',
-      description: 'Challenge rejected - stake refunded',
+      reference,
+      description: `Refund for rejected ${challenge.gameName} challenge`,
+      balanceBefore,
+      balanceAfter,
       metadata: { challengeId: challenge._id }
     });
   }
@@ -631,7 +670,10 @@ export const cancelChallenge = asyncHandler(async (req: AuthRequest, res: Respon
   // Refund stake to creator
   const wallet = await Wallet.findOne({ userId: challenge.creator });
   if (wallet) {
+    const balanceBefore = wallet.getBalance(challenge.currency as any);
     await wallet.updateBalance(challenge.currency as any, challenge.stakeAmount);
+    const balanceAfter = wallet.getBalance(challenge.currency as any);
+    const reference = `CANCEL_REFUND_${challenge._id}_${Date.now()}`;
 
     await Transaction.create({
       userId: challenge.creator,
@@ -640,7 +682,10 @@ export const cancelChallenge = asyncHandler(async (req: AuthRequest, res: Respon
       amount: challenge.stakeAmount,
       currency: challenge.currency,
       status: 'COMPLETED',
-      description: 'Challenge cancelled - stake refunded',
+      reference,
+      description: `Refund for cancelled ${challenge.gameName} challenge`,
+      balanceBefore,
+      balanceAfter,
       metadata: { challengeId: challenge._id }
     });
   }
@@ -854,7 +899,10 @@ export const settleChallenge = asyncHandler(async (req: AuthRequest, res: Respon
   // Pay winner
   const winnerWallet = await Wallet.findOne({ userId: challenge.winner });
   if (winnerWallet) {
+    const winnerBalanceBefore = winnerWallet.getBalance(challenge.currency as any);
     await winnerWallet.updateBalance(challenge.currency as any, winnerPayout);
+    const winnerBalanceAfter = winnerWallet.getBalance(challenge.currency as any);
+    const winnerReference = `WIN_${challenge._id}_${Date.now()}`;
 
     await Transaction.create({
       userId: challenge.winner,
@@ -863,7 +911,10 @@ export const settleChallenge = asyncHandler(async (req: AuthRequest, res: Respon
       amount: winnerPayout,
       currency: challenge.currency,
       status: 'COMPLETED',
+      reference: winnerReference,
       description: `Won ${challenge.gameName} challenge`,
+      balanceBefore: winnerBalanceBefore,
+      balanceAfter: winnerBalanceAfter,
       metadata: { challengeId: challenge._id }
     });
   }
@@ -871,7 +922,10 @@ export const settleChallenge = asyncHandler(async (req: AuthRequest, res: Respon
   // Pay witness
   const witnessWallet = await Wallet.findOne({ userId: challenge.witness });
   if (witnessWallet) {
+    const witnessBalanceBefore = witnessWallet.getBalance(challenge.currency as any);
     await witnessWallet.updateBalance(challenge.currency as any, witnessFeeAmount);
+    const witnessBalanceAfter = witnessWallet.getBalance(challenge.currency as any);
+    const witnessReference = `WITNESS_${challenge._id}_${Date.now()}`;
 
     await Transaction.create({
       userId: challenge.witness,
@@ -880,7 +934,10 @@ export const settleChallenge = asyncHandler(async (req: AuthRequest, res: Respon
       amount: witnessFeeAmount,
       currency: challenge.currency,
       status: 'COMPLETED',
+      reference: witnessReference,
       description: `Witness fee for ${challenge.gameName} challenge`,
+      balanceBefore: witnessBalanceBefore,
+      balanceAfter: witnessBalanceAfter,
       metadata: { challengeId: challenge._id }
     });
   }
