@@ -5,7 +5,6 @@ import OTP from '../models/OTP';
 import emailService from '../services/emailService';
 import { generateOTP } from '../utils/generateOTP';
 import asyncHandler from '../utils/asyncHandler';
-import bcrypt from 'bcryptjs';
 
 export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
   const errors = validationResult(req);
@@ -203,9 +202,8 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
   otpRecord.isUsed = true;
   await otpRecord.save();
 
-  // Hash new password
-  const salt = await bcrypt.genSalt(10);
-  user.password = await bcrypt.hash(newPassword, salt);
+  // Set new password (will be hashed by pre-save hook)
+  user.password = newPassword;
   await user.save();
 
   // Delete all other password reset OTPs for this user
