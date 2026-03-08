@@ -44,9 +44,9 @@ export const youtubeCallback = asyncHandler(async (req: Request, res: Response) 
 
     const { access_token, refresh_token } = tokenResponse.data;
 
-    // Get channel info
+    // Get channel info with statistics
     const channelResponse = await axios.get(
-      'https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true',
+      'https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true',
       {
         headers: { Authorization: `Bearer ${access_token}` }
       }
@@ -63,6 +63,8 @@ export const youtubeCallback = asyncHandler(async (req: Request, res: Response) 
         channelId: channel.id,
         channelUrl: `https://youtube.com/channel/${channel.id}`,
         channelName: channel.snippet.title,
+        profileImage: channel.snippet.thumbnails?.default?.url || null,
+        subscriberCount: parseInt(channel.statistics?.subscriberCount || '0'),
         verified: true,
         accessToken: access_token,
         refreshToken: refresh_token
@@ -127,12 +129,31 @@ export const twitchCallback = asyncHandler(async (req: Request, res: Response) =
       return res.redirect(`${process.env.FRONTEND_URL}/edit-profile?error=no_twitch_user`);
     }
 
+    // Get follower count
+    let followerCount = 0;
+    try {
+      const followersResponse = await axios.get(
+        `https://api.twitch.tv/helix/channels/followers?broadcaster_id=${twitchUser.id}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${access_token}`,
+            'Client-Id': process.env.TWITCH_CLIENT_ID!
+          }
+        }
+      );
+      followerCount = followersResponse.data.total || 0;
+    } catch (error) {
+      console.log('Could not fetch follower count:', error);
+    }
+
     // Update user with Twitch info
     await User.findByIdAndUpdate(userId, {
       'streamingAccounts.twitch': {
         channelId: twitchUser.id,
         channelUrl: `https://twitch.tv/${twitchUser.login}`,
         channelName: twitchUser.display_name,
+        profileImage: twitchUser.profile_image_url || null,
+        followerCount: followerCount,
         verified: true,
         accessToken: access_token,
         refreshToken: refresh_token

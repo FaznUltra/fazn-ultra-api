@@ -54,6 +54,8 @@ const userSchema = new Schema<IUser>(
         channelUrl: { type: String, default: null },
         channelId: { type: String, default: null },
         channelName: { type: String, default: null },
+        profileImage: { type: String, default: null },
+        subscriberCount: { type: Number, default: 0 },
         verified: { type: Boolean, default: false },
         accessToken: { type: String, default: null, select: false },
         refreshToken: { type: String, default: null, select: false }
@@ -62,6 +64,8 @@ const userSchema = new Schema<IUser>(
         channelUrl: { type: String, default: null },
         channelId: { type: String, default: null },
         channelName: { type: String, default: null },
+        profileImage: { type: String, default: null },
+        followerCount: { type: Number, default: 0 },
         verified: { type: Boolean, default: false },
         accessToken: { type: String, default: null, select: false },
         refreshToken: { type: String, default: null, select: false }
