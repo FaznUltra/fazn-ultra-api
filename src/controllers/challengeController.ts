@@ -1741,7 +1741,7 @@ export const settleChallenge = asyncHandler(async (req: AuthRequest, res: Respon
       await Transaction.create({
         userId: challenge.creator,
         walletId: creatorWallet._id,
-        type: 'CHALLENGE_REFUND',
+        type: 'STAKE_REFUND',
         amount: challenge.stakeAmount,
         currency: challenge.currency,
         status: 'COMPLETED',
@@ -1764,7 +1764,7 @@ export const settleChallenge = asyncHandler(async (req: AuthRequest, res: Respon
         await Transaction.create({
           userId: challenge.acceptor,
           walletId: acceptorWallet._id,
-          type: 'CHALLENGE_REFUND',
+          type: 'STAKE_REFUND',
           amount: challenge.stakeAmount,
           currency: challenge.currency,
           status: 'COMPLETED',
@@ -1813,7 +1813,7 @@ export const settleChallenge = asyncHandler(async (req: AuthRequest, res: Respon
       await Transaction.create({
         userId: challenge.winner,
         walletId: winnerWallet._id,
-        type: 'CHALLENGE_PAYOUT',
+        type: 'WINNING_CREDIT',
         amount: winnerPayout,
         currency: challenge.currency,
         status: 'COMPLETED',
@@ -1857,7 +1857,7 @@ export const settleChallenge = asyncHandler(async (req: AuthRequest, res: Respon
     await Transaction.create({
       userId: challenge.witness,
       walletId: witnessWallet._id,
-      type: 'WITNESS_FEE',
+      type: 'WITNESS_REWARD',
       amount: witnessFeeAmount,
       currency: challenge.currency,
       status: 'COMPLETED',
