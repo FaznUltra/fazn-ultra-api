@@ -95,9 +95,14 @@ export const getChallengeById = asyncHandler(async (req: AuthRequest, res: Respo
 
   // Authorization logic:
   // - PUBLIC: Anyone can view
+  // - ACCEPTED challenges: Anyone can view (for witnessing)
   // - DIRECT: Only creator and designated acceptor
   // - FRIENDS: Creator, acceptor, or any friend of creator
-  if (challenge.challengeType === 'DIRECT') {
+  
+  // Allow anyone to view ACCEPTED challenges for witnessing
+  if (challenge.status === 'ACCEPTED') {
+    // No authorization check needed - open for witnessing
+  } else if (challenge.challengeType === 'DIRECT') {
     const isParticipant = 
       challenge.creator._id.toString() === userId?.toString() ||
       challenge.acceptor?._id.toString() === userId?.toString();
@@ -355,6 +360,42 @@ export const getPublicChallenges = asyncHandler(async (req: AuthRequest, res: Re
   const challenges = await Challenge.find(query)
     .populate('creator', 'displayName profileImage isVerified')
     .sort({ createdAt: -1 })
+    .limit(Number(limit))
+    .skip(skip);
+
+  const total = await Challenge.countDocuments(query);
+
+  res.json({
+    success: true,
+    data: {
+      challenges,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        pages: Math.ceil(total / Number(limit))
+      }
+    }
+  });
+});
+
+// Get challenges available for witnessing
+export const getWitnessingChallenges = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const userId = req.user?._id;
+  const { limit = 20, page = 1 } = req.query;
+  const skip = (Number(page) - 1) * Number(limit);
+
+  // Find accepted challenges without a witness
+  const query = {
+    status: 'ACCEPTED',
+    witness: null,
+    matchStartTime: { $gt: new Date() } // Only upcoming matches
+  };
+
+  const challenges = await Challenge.find(query)
+    .populate('creator', 'displayName profileImage isVerified')
+    .populate('acceptor', 'displayName profileImage isVerified')
+    .sort({ matchStartTime: 1 }) // Soonest matches first
     .limit(Number(limit))
     .skip(skip);
 

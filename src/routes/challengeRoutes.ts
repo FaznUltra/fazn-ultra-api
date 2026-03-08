@@ -5,6 +5,7 @@ import {
   getChallengeById,
   getPublicChallenges,
   getFriendsChallenges,
+  getWitnessingChallenges,
   createChallenge,
   acceptChallenge,
   rejectChallenge,
@@ -28,6 +29,7 @@ router.get('/games', getAvailableGames);
 router.get('/history', getChallengeHistory);
 router.get('/public', getPublicChallenges);
 router.get('/friends', getFriendsChallenges);
+router.get('/witnessing', getWitnessingChallenges);
 router.get('/stats', getChallengeStats);
 router.get('/:id', getChallengeById);
 
