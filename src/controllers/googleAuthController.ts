@@ -50,7 +50,7 @@ export const googleAuthCallback = (req: Request, res: Response, next: NextFuncti
     const frontendUrl = process.env.FRONTEND_URL || 'ultra://';
     const deepLink = `${frontendUrl}auth/google-callback?token=${token}&refreshToken=${refreshToken}`;
     
-    // Return HTML page that triggers deep link and closes browser
+    // Return HTML page with manual button to trigger deep link
     return res.send(`
       <!DOCTYPE html>
       <html>
@@ -61,7 +61,7 @@ export const googleAuthCallback = (req: Request, res: Response, next: NextFuncti
           <style>
             body {
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-              padding: 40px;
+              padding: 20px;
               text-align: center;
               background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
               color: white;
@@ -73,49 +73,96 @@ export const googleAuthCallback = (req: Request, res: Response, next: NextFuncti
             }
             .container {
               background: rgba(255, 255, 255, 0.1);
-              padding: 40px;
+              padding: 40px 30px;
               border-radius: 20px;
               backdrop-filter: blur(10px);
+              max-width: 400px;
+              width: 100%;
             }
-            h1 { margin: 0 0 20px 0; font-size: 28px; }
-            p { margin: 10px 0; font-size: 16px; opacity: 0.9; }
+            h1 { margin: 0 0 10px 0; font-size: 24px; font-weight: 600; }
+            .email { 
+              font-size: 14px; 
+              opacity: 0.9; 
+              margin-bottom: 30px;
+              word-break: break-word;
+            }
+            .success { font-size: 64px; margin-bottom: 20px; }
+            .btn {
+              background: white;
+              color: #667eea;
+              border: none;
+              padding: 16px 40px;
+              font-size: 18px;
+              font-weight: 600;
+              border-radius: 12px;
+              cursor: pointer;
+              width: 100%;
+              margin-top: 20px;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+              transition: transform 0.2s;
+            }
+            .btn:active {
+              transform: scale(0.98);
+            }
+            .info {
+              font-size: 13px;
+              opacity: 0.8;
+              margin-top: 20px;
+              line-height: 1.5;
+            }
             .spinner {
-              border: 4px solid rgba(255, 255, 255, 0.3);
-              border-top: 4px solid white;
+              border: 3px solid rgba(255, 255, 255, 0.3);
+              border-top: 3px solid white;
               border-radius: 50%;
-              width: 40px;
-              height: 40px;
+              width: 30px;
+              height: 30px;
               animation: spin 1s linear infinite;
               margin: 20px auto;
+              display: none;
             }
             @keyframes spin {
               0% { transform: rotate(0deg); }
               100% { transform: rotate(360deg); }
             }
-            .success { font-size: 48px; margin-bottom: 20px; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="success">✓</div>
-            <h1>Sign-In Successful!</h1>
-            <div class="spinner"></div>
-            <p>Redirecting back to Ultra Gaming...</p>
-            <p style="font-size: 14px; margin-top: 30px;">If you're not redirected, you can close this window.</p>
+            <h1>Successfully Signed In!</h1>
+            <div class="email">${user.email}</div>
+            <button class="btn" onclick="openApp()">Return to Ultra Gaming</button>
+            <div class="spinner" id="spinner"></div>
+            <div class="info">
+              Tap the button above to return to the app.<br>
+              You can close this window after.
+            </div>
           </div>
           <script>
-            // Try to open the app via deep link
-            window.location.href = '${deepLink}';
+            let attempted = false;
             
-            // Fallback: Try again after a short delay
+            function openApp() {
+              if (attempted) return;
+              attempted = true;
+              
+              document.querySelector('.btn').style.display = 'none';
+              document.getElementById('spinner').style.display = 'block';
+              document.querySelector('.info').textContent = 'Opening Ultra Gaming...';
+              
+              // Try to open the app
+              window.location.href = '${deepLink}';
+              
+              // Show success message after delay
+              setTimeout(function() {
+                document.getElementById('spinner').style.display = 'none';
+                document.querySelector('.info').innerHTML = 'App opened!<br>You can close this window now.';
+              }, 2000);
+            }
+            
+            // Auto-attempt on page load (works on some browsers)
             setTimeout(function() {
               window.location.href = '${deepLink}';
             }, 500);
-            
-            // Close the browser window after redirect (works in some browsers)
-            setTimeout(function() {
-              window.close();
-            }, 1000);
           </script>
         </body>
       </html>
