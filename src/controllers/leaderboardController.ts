@@ -186,7 +186,7 @@ export const getFeaturedChallenges = asyncHandler(async (req: AuthRequest, res: 
 // ══════════════════════════════════════════════════════════════════════════════
 // PLAYER OF THE WEEK (most wins in last 7 days)
 // ══════════════════════════════════════════════════════════════════════════════
-export const getPlayerOfTheWeek = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const getPlayerOfTheWeek = asyncHandler(async (_req: AuthRequest, res: Response) => {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
   // Get all settled challenges from the last 7 days
@@ -257,7 +257,7 @@ export const getPlayerOfTheWeek = asyncHandler(async (req: AuthRequest, res: Res
 // ══════════════════════════════════════════════════════════════════════════════
 // MATCH OF THE WEEK (highest stake settled in last 7 days)
 // ══════════════════════════════════════════════════════════════════════════════
-export const getMatchOfTheWeek = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const getMatchOfTheWeek = asyncHandler(async (_req: AuthRequest, res: Response) => {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
   const topMatch = await Challenge.findOne({
@@ -285,7 +285,7 @@ export const getMatchOfTheWeek = asyncHandler(async (req: AuthRequest, res: Resp
 // ══════════════════════════════════════════════════════════════════════════════
 // PLATFORM STATISTICS (overall platform health)
 // ══════════════════════════════════════════════════════════════════════════════
-export const getPlatformStats = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const getPlatformStats = asyncHandler(async (_req: AuthRequest, res: Response) => {
   const [
     totalUsers,
     activeUsers,
