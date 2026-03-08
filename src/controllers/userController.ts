@@ -59,7 +59,7 @@ export const getUserProfile = asyncHandler(async (req: AuthRequest, res: Respons
   const { userId } = req.params;
 
   const user = await User.findById(userId).select(
-    'firstName lastName displayName email profileImage stats streamingAccounts isVerified createdAt'
+    'firstName lastName displayName email profileImage stats streamingAccounts isVerified createdAt witnessReputation totalWitnessedMatches successfulWitnesses'
   );
 
   if (!user) {
