@@ -71,6 +71,7 @@ const userSchema = new Schema<IUser>(
       totalChallenges: { type: Number, default: 0 },
       wins: { type: Number, default: 0 },
       losses: { type: Number, default: 0 },
+      draws: { type: Number, default: 0 },
       totalEarnings: { type: Number, default: 0 },
       totalStaked: { type: Number, default: 0 }
     },

@@ -28,6 +28,7 @@ export interface IUser extends Document {
     totalChallenges: number;
     wins: number;
     losses: number;
+    draws: number;
     totalEarnings: number;
     totalStaked: number;
   };

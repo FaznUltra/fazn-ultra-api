@@ -1998,8 +1998,11 @@ export const settleChallenge = asyncHandler(async (req: AuthRequest, res: Respon
       witnessUser.witnessReputation = Math.min(100, witnessUser.witnessReputation + 0.5);
     }
     
+    // Add witness fee to total earnings
+    witnessUser.stats.totalEarnings += witnessFeeAmount;
+    
     await witnessUser.save();
-    console.log(`[WITNESS] ${witnessUser.displayName} reputation increased to ${witnessUser.witnessReputation}%`);
+    console.log(`[WITNESS] ${witnessUser.displayName} reputation increased to ${witnessUser.witnessReputation}%, earned ₦${witnessFeeAmount}`);
   }
 
   // Update player stats
@@ -2013,9 +2016,12 @@ export const settleChallenge = asyncHandler(async (req: AuthRequest, res: Respon
       creatorUser.stats.totalEarnings += winnerPayout;
     } else if (challenge.loser?.toString() === challenge.creator.toString()) {
       creatorUser.stats.losses += 1;
+    } else if (!challenge.winner && !challenge.loser) {
+      // It's a draw
+      creatorUser.stats.draws += 1;
     }
     await creatorUser.save();
-    console.log(`[STATS] ${creatorUser.displayName} - Challenges: ${creatorUser.stats.totalChallenges}, Wins: ${creatorUser.stats.wins}, Losses: ${creatorUser.stats.losses}, Earnings: ₦${creatorUser.stats.totalEarnings}`);
+    console.log(`[STATS] ${creatorUser.displayName} - Challenges: ${creatorUser.stats.totalChallenges}, Wins: ${creatorUser.stats.wins}, Losses: ${creatorUser.stats.losses}, Draws: ${creatorUser.stats.draws}, Earnings: ₦${creatorUser.stats.totalEarnings}`);
   }
 
   if (acceptorUser) {
@@ -2025,9 +2031,12 @@ export const settleChallenge = asyncHandler(async (req: AuthRequest, res: Respon
       acceptorUser.stats.totalEarnings += winnerPayout;
     } else if (challenge.loser?.toString() === challenge.acceptor?.toString()) {
       acceptorUser.stats.losses += 1;
+    } else if (!challenge.winner && !challenge.loser) {
+      // It's a draw
+      acceptorUser.stats.draws += 1;
     }
     await acceptorUser.save();
-    console.log(`[STATS] ${acceptorUser.displayName} - Challenges: ${acceptorUser.stats.totalChallenges}, Wins: ${acceptorUser.stats.wins}, Losses: ${acceptorUser.stats.losses}, Earnings: ₦${acceptorUser.stats.totalEarnings}`);
+    console.log(`[STATS] ${acceptorUser.displayName} - Challenges: ${acceptorUser.stats.totalChallenges}, Wins: ${acceptorUser.stats.wins}, Losses: ${acceptorUser.stats.losses}, Draws: ${acceptorUser.stats.draws}, Earnings: ₦${acceptorUser.stats.totalEarnings}`);
   }
 
   challenge.status = 'SETTLED';

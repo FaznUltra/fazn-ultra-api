@@ -60,6 +60,7 @@ import streamingRoutes from './routes/streamingRoutes';
 import challengeRoutes from './routes/challengeRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import supportRoutes from './routes/supportRoutes';
+import leaderboardRoutes from './routes/leaderboardRoutes';
 
 app.use(`/api/${process.env.API_VERSION || 'v1'}/auth`, authRoutes);
 app.use(`/api/${process.env.API_VERSION || 'v1'}/wallet`, walletRoutes);
@@ -70,6 +71,7 @@ app.use(`/api/${process.env.API_VERSION || 'v1'}/streaming`, streamingRoutes);
 app.use(`/api/${process.env.API_VERSION || 'v1'}/challenges`, challengeRoutes);
 app.use(`/api/${process.env.API_VERSION || 'v1'}/notifications`, notificationRoutes);
 app.use(`/api/${process.env.API_VERSION || 'v1'}/support`, supportRoutes);
+app.use(`/api/${process.env.API_VERSION || 'v1'}/leaderboard`, leaderboardRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
