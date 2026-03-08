@@ -1665,8 +1665,9 @@ export const submitResult = asyncHandler(async (req: AuthRequest, res: Response)
   });
 });
 
-// Settle challenge (Admin/System)
+// Settle challenge (Witness only, after dispute window)
 export const settleChallenge = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const userId = req.user?._id;
   const { id } = req.params;
 
   const challenge = await Challenge.findById(id);
@@ -1679,6 +1680,15 @@ export const settleChallenge = asyncHandler(async (req: AuthRequest, res: Respon
     return;
   }
 
+  // Verify user is the witness
+  if (challenge.witness?.toString() !== userId?.toString()) {
+    res.status(403).json({
+      success: false,
+      message: 'Only the assigned witness can settle this challenge'
+    });
+    return;
+  }
+
   if (challenge.status !== 'COMPLETED') {
     res.status(400).json({
       success: false,
@@ -1687,42 +1697,156 @@ export const settleChallenge = asyncHandler(async (req: AuthRequest, res: Respon
     return;
   }
 
-  if (!challenge.winner || !challenge.witness) {
+  // Check if challenge is disputed
+  if (challenge.isDisputed) {
     res.status(400).json({
       success: false,
-      message: 'Challenge must have a winner and witness'
+      message: 'Cannot settle a disputed challenge. Admin review required.'
+    });
+    return;
+  }
+
+  // Check if dispute window has passed
+  if (challenge.disputeDeadline && new Date() < new Date(challenge.disputeDeadline)) {
+    const timeLeft = Math.ceil((new Date(challenge.disputeDeadline).getTime() - Date.now()) / 1000 / 60);
+    res.status(400).json({
+      success: false,
+      message: `Cannot settle yet. Players have ${timeLeft} minute(s) left to dispute.`
+    });
+    return;
+  }
+
+  if (!challenge.witness) {
+    res.status(400).json({
+      success: false,
+      message: 'Challenge must have a witness'
     });
     return;
   }
 
   // Calculate payouts
   const witnessFeeAmount = challenge.totalPot * challenge.witnessFee;
-  const winnerPayout = challenge.winnerPayout;
 
-  // Pay winner
-  const winnerWallet = await Wallet.findOne({ userId: challenge.winner });
-  if (winnerWallet) {
-    const winnerBalanceBefore = winnerWallet.getBalance(challenge.currency as any);
-    await winnerWallet.updateBalance(challenge.currency as any, winnerPayout);
-    const winnerBalanceAfter = winnerWallet.getBalance(challenge.currency as any);
-    const winnerReference = `WIN_${challenge._id}_${Date.now()}`;
+  if (!challenge.winner) {
+    // Draw - refund both players
+    console.log(`[Settlement] Challenge ${challenge._id} is a draw - refunding both players`);
 
-    await Transaction.create({
-      userId: challenge.winner,
-      walletId: winnerWallet._id,
-      type: 'CHALLENGE_PAYOUT',
-      amount: winnerPayout,
-      currency: challenge.currency,
-      status: 'COMPLETED',
-      reference: winnerReference,
-      description: `Won ${challenge.gameName} challenge`,
-      balanceBefore: winnerBalanceBefore,
-      balanceAfter: winnerBalanceAfter,
-      metadata: { challengeId: challenge._id }
+    // Refund creator
+    const creatorWallet = await Wallet.findOne({ userId: challenge.creator });
+    if (creatorWallet) {
+      const creatorBalanceBefore = creatorWallet.getBalance(challenge.currency as any);
+      await creatorWallet.updateBalance(challenge.currency as any, challenge.stakeAmount);
+      const creatorBalanceAfter = creatorWallet.getBalance(challenge.currency as any);
+
+      await Transaction.create({
+        userId: challenge.creator,
+        walletId: creatorWallet._id,
+        type: 'CHALLENGE_REFUND',
+        amount: challenge.stakeAmount,
+        currency: challenge.currency,
+        status: 'COMPLETED',
+        reference: `REFUND_${challenge._id}_${Date.now()}`,
+        description: `Refund for draw in ${challenge.gameName} challenge`,
+        balanceBefore: creatorBalanceBefore,
+        balanceAfter: creatorBalanceAfter,
+        metadata: { challengeId: challenge._id, reason: 'Draw' }
+      });
+    }
+
+    // Refund acceptor
+    if (challenge.acceptor) {
+      const acceptorWallet = await Wallet.findOne({ userId: challenge.acceptor });
+      if (acceptorWallet) {
+        const acceptorBalanceBefore = acceptorWallet.getBalance(challenge.currency as any);
+        await acceptorWallet.updateBalance(challenge.currency as any, challenge.stakeAmount);
+        const acceptorBalanceAfter = acceptorWallet.getBalance(challenge.currency as any);
+
+        await Transaction.create({
+          userId: challenge.acceptor,
+          walletId: acceptorWallet._id,
+          type: 'CHALLENGE_REFUND',
+          amount: challenge.stakeAmount,
+          currency: challenge.currency,
+          status: 'COMPLETED',
+          reference: `REFUND_${challenge._id}_${Date.now()}`,
+          description: `Refund for draw in ${challenge.gameName} challenge`,
+          balanceBefore: acceptorBalanceBefore,
+          balanceAfter: acceptorBalanceAfter,
+          metadata: { challengeId: challenge._id, reason: 'Draw' }
+        });
+      }
+    }
+
+    // Notify both players
+    await Notification.create({
+      userId: challenge.creator,
+      type: 'PAYMENT',
+      title: 'Challenge Settled - Draw',
+      message: `Your stake of ₦${challenge.stakeAmount.toLocaleString()} has been refunded.`,
+      data: { challengeId: challenge._id }
     });
+
+    if (challenge.acceptor) {
+      await Notification.create({
+        userId: challenge.acceptor,
+        type: 'PAYMENT',
+        title: 'Challenge Settled - Draw',
+        message: `Your stake of ₦${challenge.stakeAmount.toLocaleString()} has been refunded.`,
+        data: { challengeId: challenge._id }
+      });
+    }
+
+  } else {
+    // Winner exists - pay winner and witness
+    console.log(`[Settlement] Challenge ${challenge._id} - Winner: ${challenge.winnerUsername}`);
+
+    const winnerPayout = challenge.winnerPayout;
+
+    // Pay winner
+    const winnerWallet = await Wallet.findOne({ userId: challenge.winner });
+    if (winnerWallet) {
+      const winnerBalanceBefore = winnerWallet.getBalance(challenge.currency as any);
+      await winnerWallet.updateBalance(challenge.currency as any, winnerPayout);
+      const winnerBalanceAfter = winnerWallet.getBalance(challenge.currency as any);
+      const winnerReference = `WIN_${challenge._id}_${Date.now()}`;
+
+      await Transaction.create({
+        userId: challenge.winner,
+        walletId: winnerWallet._id,
+        type: 'CHALLENGE_PAYOUT',
+        amount: winnerPayout,
+        currency: challenge.currency,
+        status: 'COMPLETED',
+        reference: winnerReference,
+        description: `Won ${challenge.gameName} challenge`,
+        balanceBefore: winnerBalanceBefore,
+        balanceAfter: winnerBalanceAfter,
+        metadata: { challengeId: challenge._id }
+      });
+    }
+
+    // Notify winner
+    await Notification.create({
+      userId: challenge.winner,
+      type: 'PAYMENT',
+      title: 'Challenge Settled!',
+      message: `You won ₦${winnerPayout.toLocaleString()} from your ${challenge.gameName} challenge!`,
+      data: { challengeId: challenge._id }
+    });
+
+    // Notify loser
+    if (challenge.loser) {
+      await Notification.create({
+        userId: challenge.loser,
+        type: 'CHALLENGE',
+        title: 'Challenge Settled',
+        message: `Match settled. Better luck next time!`,
+        data: { challengeId: challenge._id }
+      });
+    }
   }
 
-  // Pay witness
+  // Pay witness fee (always, even for draws)
   const witnessWallet = await Wallet.findOne({ userId: challenge.witness });
   if (witnessWallet) {
     const witnessBalanceBefore = witnessWallet.getBalance(challenge.currency as any);
@@ -1743,6 +1867,15 @@ export const settleChallenge = asyncHandler(async (req: AuthRequest, res: Respon
       balanceAfter: witnessBalanceAfter,
       metadata: { challengeId: challenge._id }
     });
+
+    // Notify witness
+    await Notification.create({
+      userId: challenge.witness,
+      type: 'PAYMENT',
+      title: 'Witness Fee Received',
+      message: `You received ₦${witnessFeeAmount.toLocaleString()} for witnessing a challenge`,
+      data: { challengeId: challenge._id }
+    });
   }
 
   // Platform fee is already deducted (not added to any wallet)
@@ -1750,24 +1883,6 @@ export const settleChallenge = asyncHandler(async (req: AuthRequest, res: Respon
   challenge.status = 'SETTLED';
   challenge.settledAt = new Date();
   await challenge.save();
-
-  // Notify winner
-  await Notification.create({
-    userId: challenge.winner,
-    type: 'PAYMENT',
-    title: 'Challenge Settled!',
-    message: `You won ₦${winnerPayout.toLocaleString()} from your ${challenge.gameName} challenge!`,
-    data: { challengeId: challenge._id }
-  });
-
-  // Notify witness
-  await Notification.create({
-    userId: challenge.witness,
-    type: 'PAYMENT',
-    title: 'Witness Fee Received',
-    message: `You received ₦${witnessFeeAmount.toLocaleString()} for witnessing a challenge`,
-    data: { challengeId: challenge._id }
-  });
 
   res.json({
     success: true,

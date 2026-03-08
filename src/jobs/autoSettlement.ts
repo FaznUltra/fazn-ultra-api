@@ -11,16 +11,21 @@ import Notification from '../models/Notification';
 export const autoSettleChallenges = async () => {
   try {
     const now = new Date();
+    console.log(`[Auto-Settlement] Running at ${now.toISOString()}`);
 
     // Find all completed challenges where dispute deadline has passed
     const challengesToSettle = await Challenge.find({
       status: 'COMPLETED',
       isDisputed: false,
       isFlagged: false,
-      disputeDeadline: { $lte: now }
-    });
+      disputeDeadline: { $lte: now, $ne: null }
+    }).populate('creator acceptor witness');
 
     console.log(`[Auto-Settlement] Found ${challengesToSettle.length} challenges to settle`);
+    
+    if (challengesToSettle.length > 0) {
+      console.log('[Auto-Settlement] Challenge IDs:', challengesToSettle.map(c => c._id));
+    }
 
     for (const challenge of challengesToSettle) {
       try {
@@ -43,10 +48,11 @@ export const autoSettleChallenges = async () => {
  */
 async function settleSingleChallenge(challenge: any) {
   console.log(`[Auto-Settlement] Settling challenge ${challenge._id}`);
+  console.log(`[Auto-Settlement] Challenge details - Status: ${challenge.status}, Dispute Deadline: ${challenge.disputeDeadline}, Winner: ${challenge.winner}`);
 
   // Determine payout recipients
   const winnerId = challenge.winner;
-  const witnessId = challenge.witness;
+  const witnessId = challenge.witness?._id || challenge.witness;
 
   if (!winnerId) {
     // Draw - refund both players
