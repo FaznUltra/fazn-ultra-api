@@ -14,6 +14,7 @@ export type ChallengeStatus =
   | 'REFUNDED' 
   | 'COMPLETED' 
   | 'DISPUTED'
+  | 'FLAGGED'
   | 'SETTLED';
 
 export interface IChallenge extends Document {
@@ -301,7 +302,7 @@ const challengeSchema = new Schema<IChallenge>(
     // Results
     status: {
       type: String,
-      enum: ['OPEN', 'PENDING_ACCEPTANCE', 'ACCEPTED', 'LIVE', 'REJECTED', 'CANCELLED', 'REFUNDED', 'COMPLETED', 'DISPUTED', 'SETTLED'],
+      enum: ['OPEN', 'PENDING_ACCEPTANCE', 'ACCEPTED', 'LIVE', 'REJECTED', 'CANCELLED', 'REFUNDED', 'COMPLETED', 'DISPUTED', 'FLAGGED', 'SETTLED'],
       default: 'OPEN',
       index: true
     },

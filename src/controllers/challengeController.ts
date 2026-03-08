@@ -857,6 +857,7 @@ export const flagMatch = asyncHandler(async (req: AuthRequest, res: Response) =>
   challenge.flagReason = reason.trim();
   challenge.flaggedAt = new Date();
   challenge.reviewStatus = 'PENDING_REVIEW';
+  challenge.status = 'FLAGGED'; // Change status to FLAGGED to lock the challenge
   await challenge.save();
 
   // Calculate priority based on stake amount (higher stakes = higher priority)
