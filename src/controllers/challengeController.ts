@@ -381,7 +381,6 @@ export const getPublicChallenges = asyncHandler(async (req: AuthRequest, res: Re
 
 // Get challenges available for witnessing
 export const getWitnessingChallenges = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const userId = req.user?._id;
   const { limit = 20, page = 1 } = req.query;
   const skip = (Number(page) - 1) * Number(limit);
 
