@@ -17,9 +17,25 @@ export const googleAuth = passport.authenticate('google', {
 export const googleAuthCallback = (req: Request, res: Response, next: NextFunction) => {
   passport.authenticate('google', { session: false }, (err: any, user: IUser) => {
     if (err || !user) {
-      // Redirect to error page
-      const frontendUrl = process.env.FRONTEND_URL || 'exp://localhost:8081';
-      return res.redirect(`${frontendUrl}/auth/error?message=Authentication failed`);
+      // Return HTML error page
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Authentication Failed</title>
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px; text-align: center; }
+              h1 { color: #ff3b30; }
+            </style>
+          </head>
+          <body>
+            <h1>Authentication Failed</h1>
+            <p>Please close this window and try again.</p>
+          </body>
+        </html>
+      `);
     }
 
     const payload = {
@@ -31,13 +47,79 @@ export const googleAuthCallback = (req: Request, res: Response, next: NextFuncti
     const token = generateToken(payload);
     const refreshToken = generateRefreshToken(payload);
 
-    // Support both web and mobile redirects
-    const frontendUrl = process.env.FRONTEND_URL || 'exp://localhost:8081';
+    const frontendUrl = process.env.FRONTEND_URL || 'ultra://';
+    const deepLink = `${frontendUrl}auth/google-callback?token=${token}&refreshToken=${refreshToken}`;
     
-    // For mobile apps, use custom scheme with tokens in URL
-    const redirectUrl = `${frontendUrl}/auth/google-callback?token=${token}&refreshToken=${refreshToken}`;
-    
-    return res.redirect(redirectUrl);
+    // Return HTML page that triggers deep link and closes browser
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Sign-In Successful</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+              padding: 40px;
+              text-align: center;
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              color: white;
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              margin: 0;
+            }
+            .container {
+              background: rgba(255, 255, 255, 0.1);
+              padding: 40px;
+              border-radius: 20px;
+              backdrop-filter: blur(10px);
+            }
+            h1 { margin: 0 0 20px 0; font-size: 28px; }
+            p { margin: 10px 0; font-size: 16px; opacity: 0.9; }
+            .spinner {
+              border: 4px solid rgba(255, 255, 255, 0.3);
+              border-top: 4px solid white;
+              border-radius: 50%;
+              width: 40px;
+              height: 40px;
+              animation: spin 1s linear infinite;
+              margin: 20px auto;
+            }
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+            .success { font-size: 48px; margin-bottom: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="success">✓</div>
+            <h1>Sign-In Successful!</h1>
+            <div class="spinner"></div>
+            <p>Redirecting back to Ultra Gaming...</p>
+            <p style="font-size: 14px; margin-top: 30px;">If you're not redirected, you can close this window.</p>
+          </div>
+          <script>
+            // Try to open the app via deep link
+            window.location.href = '${deepLink}';
+            
+            // Fallback: Try again after a short delay
+            setTimeout(function() {
+              window.location.href = '${deepLink}';
+            }, 500);
+            
+            // Close the browser window after redirect (works in some browsers)
+            setTimeout(function() {
+              window.close();
+            }, 1000);
+          </script>
+        </body>
+      </html>
+    `);
   })(req, res, next);
 };
 
