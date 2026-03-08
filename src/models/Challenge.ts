@@ -59,6 +59,13 @@ export interface IChallenge extends Document {
   witnessUsername: string | null;
   witnessVerifiedAt: Date | null;
   
+  // Room Code
+  roomCode: string | null;
+  roomCodeSharedAt: Date | null;
+  creatorJoinedRoom: boolean;
+  acceptorJoinedRoom: boolean;
+  matchStartedAt: Date | null;
+  
   // Results
   status: ChallengeStatus;
   winner: Types.ObjectId | null;
@@ -217,6 +224,28 @@ const challengeSchema = new Schema<IChallenge>(
       default: null
     },
     witnessVerifiedAt: {
+      type: Date,
+      default: null
+    },
+    
+    // Room Code
+    roomCode: {
+      type: String,
+      default: null
+    },
+    roomCodeSharedAt: {
+      type: Date,
+      default: null
+    },
+    creatorJoinedRoom: {
+      type: Boolean,
+      default: false
+    },
+    acceptorJoinedRoom: {
+      type: Boolean,
+      default: false
+    },
+    matchStartedAt: {
       type: Date,
       default: null
     },

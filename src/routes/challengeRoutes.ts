@@ -13,6 +13,9 @@ import {
   rejectChallenge,
   cancelChallenge,
   updateStreamingLink,
+  shareRoomCode,
+  confirmJoinedRoom,
+  startMatch,
   submitResult,
   settleChallenge,
   getChallengeStats
@@ -45,6 +48,11 @@ router.post('/:id/reject', rejectChallenge);
 router.post('/:id/cancel', cancelChallenge);
 router.post('/:id/volunteer-witness', volunteerAsWitness);
 router.patch('/:id/streaming-link', updateStreamingLink);
+
+// Room code and match start
+router.post('/:id/share-room-code', shareRoomCode);
+router.post('/:id/confirm-joined', confirmJoinedRoom);
+router.post('/:id/start-match', startMatch);
 
 // Result submission and settlement
 router.post('/:id/result', submitResult);

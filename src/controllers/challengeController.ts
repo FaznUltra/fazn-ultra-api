@@ -528,6 +528,265 @@ export const getMyWitnessingChallenges = asyncHandler(async (req: AuthRequest, r
   });
 });
 
+// Share or update room code (Creator only)
+export const shareRoomCode = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const userId = req.user?._id;
+  const { id } = req.params;
+  const { roomCode } = req.body;
+
+  if (!roomCode || typeof roomCode !== 'string' || roomCode.trim().length === 0) {
+    res.status(400).json({
+      success: false,
+      message: 'Room code is required'
+    });
+    return;
+  }
+
+  const challenge = await Challenge.findById(id);
+
+  if (!challenge) {
+    res.status(404).json({
+      success: false,
+      message: 'Challenge not found'
+    });
+    return;
+  }
+
+  // Verify user is the creator
+  if (challenge.creator.toString() !== userId?.toString()) {
+    res.status(403).json({
+      success: false,
+      message: 'Only the challenge creator can share the room code'
+    });
+    return;
+  }
+
+  // Verify challenge is accepted
+  if (challenge.status !== 'ACCEPTED') {
+    res.status(400).json({
+      success: false,
+      message: 'Challenge must be accepted before sharing room code'
+    });
+    return;
+  }
+
+  // Verify witness has joined
+  if (!challenge.witness) {
+    res.status(400).json({
+      success: false,
+      message: 'A witness must join before sharing the room code'
+    });
+    return;
+  }
+
+  // Verify match hasn't started yet
+  if (challenge.matchStartedAt) {
+    res.status(400).json({
+      success: false,
+      message: 'Cannot update room code after match has started'
+    });
+    return;
+  }
+
+  const isUpdating = !!challenge.roomCode;
+
+  // Update room code and reset join confirmations if updating
+  challenge.roomCode = roomCode.trim();
+  challenge.roomCodeSharedAt = new Date();
+  
+  if (isUpdating) {
+    challenge.creatorJoinedRoom = false;
+    challenge.acceptorJoinedRoom = false;
+  }
+
+  await challenge.save();
+
+  // Notify acceptor and witness
+  const notificationTitle = isUpdating ? 'Room Code Updated' : 'Room Code Shared';
+  const notificationMessage = isUpdating 
+    ? `${req.user?.displayName} has updated the room code to: ${roomCode}`
+    : `${req.user?.displayName} has shared the room code: ${roomCode}`;
+
+  if (challenge.acceptor) {
+    await Notification.create({
+      userId: challenge.acceptor,
+      type: 'CHALLENGE',
+      title: notificationTitle,
+      message: notificationMessage,
+      data: { challengeId: challenge._id, roomCode }
+    });
+  }
+
+  if (challenge.witness) {
+    await Notification.create({
+      userId: challenge.witness,
+      type: 'CHALLENGE',
+      title: notificationTitle,
+      message: notificationMessage,
+      data: { challengeId: challenge._id, roomCode }
+    });
+  }
+
+  res.json({
+    success: true,
+    message: isUpdating ? 'Room code updated successfully' : 'Room code shared successfully',
+    data: { challenge }
+  });
+});
+
+// Confirm player has joined the room
+export const confirmJoinedRoom = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const userId = req.user?._id;
+  const { id } = req.params;
+
+  const challenge = await Challenge.findById(id);
+
+  if (!challenge) {
+    res.status(404).json({
+      success: false,
+      message: 'Challenge not found'
+    });
+    return;
+  }
+
+  // Verify user is a participant
+  const isCreator = challenge.creator.toString() === userId?.toString();
+  const isAcceptor = challenge.acceptor?.toString() === userId?.toString();
+
+  if (!isCreator && !isAcceptor) {
+    res.status(403).json({
+      success: false,
+      message: 'Only participants can confirm they have joined'
+    });
+    return;
+  }
+
+  // Verify room code has been shared
+  if (!challenge.roomCode) {
+    res.status(400).json({
+      success: false,
+      message: 'Room code has not been shared yet'
+    });
+    return;
+  }
+
+  // Verify match hasn't started yet
+  if (challenge.matchStartedAt) {
+    res.status(400).json({
+      success: false,
+      message: 'Match has already started'
+    });
+    return;
+  }
+
+  // Update join confirmation
+  if (isCreator) {
+    challenge.creatorJoinedRoom = true;
+  } else {
+    challenge.acceptorJoinedRoom = true;
+  }
+
+  await challenge.save();
+
+  // Notify witness if both players have joined
+  if (challenge.creatorJoinedRoom && challenge.acceptorJoinedRoom && challenge.witness) {
+    await Notification.create({
+      userId: challenge.witness,
+      type: 'CHALLENGE',
+      title: 'Players Ready',
+      message: 'Both players have joined the room. You can now start the match.',
+      data: { challengeId: challenge._id }
+    });
+  }
+
+  res.json({
+    success: true,
+    message: 'Successfully confirmed room join',
+    data: { challenge }
+  });
+});
+
+// Start match (Witness only)
+export const startMatch = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const userId = req.user?._id;
+  const { id } = req.params;
+
+  const challenge = await Challenge.findById(id);
+
+  if (!challenge) {
+    res.status(404).json({
+      success: false,
+      message: 'Challenge not found'
+    });
+    return;
+  }
+
+  // Verify user is the witness
+  if (challenge.witness?.toString() !== userId?.toString()) {
+    res.status(403).json({
+      success: false,
+      message: 'Only the witness can start the match'
+    });
+    return;
+  }
+
+  // Verify room code has been shared
+  if (!challenge.roomCode) {
+    res.status(400).json({
+      success: false,
+      message: 'Room code has not been shared yet'
+    });
+    return;
+  }
+
+  // Verify both players have confirmed they joined
+  if (!challenge.creatorJoinedRoom || !challenge.acceptorJoinedRoom) {
+    res.status(400).json({
+      success: false,
+      message: 'Both players must confirm they have joined the room before starting'
+    });
+    return;
+  }
+
+  // Verify match hasn't already started
+  if (challenge.matchStartedAt) {
+    res.status(400).json({
+      success: false,
+      message: 'Match has already been started'
+    });
+    return;
+  }
+
+  // Start the match
+  challenge.matchStartedAt = new Date();
+  await challenge.save();
+
+  // Notify both participants
+  await Notification.create({
+    userId: challenge.creator,
+    type: 'CHALLENGE',
+    title: 'Match Started',
+    message: `The witness has started the match. Good luck!`,
+    data: { challengeId: challenge._id }
+  });
+
+  if (challenge.acceptor) {
+    await Notification.create({
+      userId: challenge.acceptor,
+      type: 'CHALLENGE',
+      title: 'Match Started',
+      message: `The witness has started the match. Good luck!`,
+      data: { challengeId: challenge._id }
+    });
+  }
+
+  res.json({
+    success: true,
+    message: 'Match started successfully',
+    data: { challenge }
+  });
+});
+
 // Get friends challenges
 export const getFriendsChallenges = asyncHandler(async (req: AuthRequest, res: Response) => {
   const userId = req.user?._id;
