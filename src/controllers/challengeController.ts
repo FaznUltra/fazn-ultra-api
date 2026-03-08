@@ -4,6 +4,7 @@ import User from '../models/User';
 import Wallet from '../models/Wallet';
 import Transaction from '../models/Transaction';
 import Notification from '../models/Notification';
+import AdminReview from '../models/AdminReview';
 import Friendship from '../models/Friendship';
 import { AuthRequest } from '../types';
 import asyncHandler from '../utils/asyncHandler';
@@ -849,17 +850,44 @@ export const flagMatch = asyncHandler(async (req: AuthRequest, res: Response) =>
   else if (isAcceptor) role = 'ACCEPTOR';
   else role = 'WITNESS';
 
-  // Flag the match
+  // Flag the match and lock it
   challenge.isFlagged = true;
   challenge.flaggedBy = userId || null;
   challenge.flaggedByRole = role;
   challenge.flagReason = reason.trim();
   challenge.flaggedAt = new Date();
+  challenge.reviewStatus = 'PENDING_REVIEW';
   await challenge.save();
 
-  // Notify admin/support team (you can implement this later)
-  // For now, notify all participants
-  const notificationMessage = `Match has been flagged by ${role.toLowerCase()} for review: ${reason.substring(0, 50)}...`;
+  // Calculate priority based on stake amount (higher stakes = higher priority)
+  let priority = 3; // default
+  if (challenge.stakeAmount >= 50000) priority = 5;
+  else if (challenge.stakeAmount >= 20000) priority = 4;
+  else if (challenge.stakeAmount >= 5000) priority = 3;
+  else if (challenge.stakeAmount >= 1000) priority = 2;
+  else priority = 1;
+
+  // Get stream URL from creator or acceptor
+  const streamUrl = challenge.creatorStreamingLink?.url || challenge.acceptorStreamingLink?.url || null;
+
+  // Create admin review entry
+  await AdminReview.create({
+    challengeId: challenge._id,
+    type: 'FLAG',
+    raisedBy: userId,
+    raisedByRole: role,
+    reason: reason.trim(),
+    evidence: {
+      streamUrl,
+      screenshots: [],
+      additionalNotes: null
+    },
+    status: 'PENDING',
+    priority
+  });
+
+  // Notify all participants
+  const notificationMessage = `Match has been flagged by ${role.toLowerCase()} for admin review. Challenge is now locked pending investigation.`;
 
   if (!isCreator && challenge.creator) {
     await Notification.create({
@@ -1104,17 +1132,74 @@ export const disputeMatch = asyncHandler(async (req: AuthRequest, res: Response)
     return;
   }
 
-  // Create dispute
+  // Get disputer user to track dispute count
+  const disputer = await User.findById(userId);
+  if (!disputer) {
+    res.status(404).json({
+      success: false,
+      message: 'User not found'
+    });
+    return;
+  }
+
+  // Check if user is suspended or banned
+  if (disputer.accountStatus === 'SUSPENDED' || disputer.accountStatus === 'BANNED') {
+    res.status(403).json({
+      success: false,
+      message: 'Your account is suspended. You cannot dispute matches.'
+    });
+    return;
+  }
+
+  // Warn user if they have previous inappropriate disputes
+  if (disputer.inappropriateDisputeCount === 1) {
+    console.log(`[DISPUTE] User ${disputer.displayName} has 1 previous inappropriate dispute - warning issued`);
+  } else if (disputer.inappropriateDisputeCount === 2) {
+    console.log(`[DISPUTE] User ${disputer.displayName} has 2 previous inappropriate disputes - final warning`);
+  }
+
+  // Create dispute and lock challenge
   challenge.isDisputed = true;
   challenge.disputedBy = userId || null;
   challenge.disputeReason = reason.trim();
   challenge.disputedAt = new Date();
   challenge.status = 'DISPUTED';
+  challenge.reviewStatus = 'PENDING_REVIEW';
   await challenge.save();
+
+  // Determine user role
+  const role: 'CREATOR' | 'ACCEPTOR' = isCreator ? 'CREATOR' : 'ACCEPTOR';
+
+  // Calculate priority based on stake amount
+  let priority = 3;
+  if (challenge.stakeAmount >= 50000) priority = 5;
+  else if (challenge.stakeAmount >= 20000) priority = 4;
+  else if (challenge.stakeAmount >= 5000) priority = 3;
+  else if (challenge.stakeAmount >= 1000) priority = 2;
+  else priority = 1;
+
+  // Get stream URL
+  const streamUrl = challenge.creatorStreamingLink?.url || challenge.acceptorStreamingLink?.url || null;
+
+  // Create admin review entry
+  await AdminReview.create({
+    challengeId: challenge._id,
+    type: 'DISPUTE',
+    raisedBy: userId,
+    raisedByRole: role,
+    reason: reason.trim(),
+    evidence: {
+      streamUrl,
+      screenshots: [],
+      additionalNotes: null
+    },
+    status: 'PENDING',
+    priority
+  });
 
   // Notify other player and witness
   const disputerName = isCreator ? challenge.creatorUsername : challenge.acceptorUsername;
-  const disputeMessage = `${disputerName} has disputed the match result. Admin review required.`;
+  const disputeMessage = `${disputerName} has disputed the match result. Challenge is locked pending admin review.`;
 
   if (!isCreator && challenge.creator) {
     await Notification.create({
@@ -1697,11 +1782,29 @@ export const settleChallenge = asyncHandler(async (req: AuthRequest, res: Respon
     return;
   }
 
+  // Check if challenge is flagged
+  if (challenge.isFlagged) {
+    res.status(400).json({
+      success: false,
+      message: 'Cannot settle a flagged challenge. Admin review required.'
+    });
+    return;
+  }
+
   // Check if challenge is disputed
   if (challenge.isDisputed) {
     res.status(400).json({
       success: false,
       message: 'Cannot settle a disputed challenge. Admin review required.'
+    });
+    return;
+  }
+
+  // Check if challenge is under review
+  if (challenge.reviewStatus === 'PENDING_REVIEW' || challenge.reviewStatus === 'UNDER_REVIEW') {
+    res.status(400).json({
+      success: false,
+      message: 'Cannot settle a challenge under admin review. Please wait for resolution.'
     });
     return;
   }
@@ -1879,6 +1982,21 @@ export const settleChallenge = asyncHandler(async (req: AuthRequest, res: Respon
   }
 
   // Platform fee is already deducted (not added to any wallet)
+
+  // Update witness reputation and stats (successful settlement)
+  const witnessUser = await User.findById(challenge.witness);
+  if (witnessUser) {
+    witnessUser.totalWitnessedMatches += 1;
+    witnessUser.successfulWitnesses += 1;
+    
+    // Increase reputation by 0.5% (max 100)
+    if (witnessUser.witnessReputation < 100) {
+      witnessUser.witnessReputation = Math.min(100, witnessUser.witnessReputation + 0.5);
+    }
+    
+    await witnessUser.save();
+    console.log(`[WITNESS] ${witnessUser.displayName} reputation increased to ${witnessUser.witnessReputation}%`);
+  }
 
   challenge.status = 'SETTLED';
   challenge.settledAt = new Date();

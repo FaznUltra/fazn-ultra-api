@@ -93,6 +93,14 @@ export interface IChallenge extends Document {
   disputeReason: string | null;
   disputedAt: Date | null;
   
+  // Admin Review
+  reviewStatus: 'NONE' | 'PENDING_REVIEW' | 'UNDER_REVIEW' | 'RESOLVED';
+  reviewedBy: Types.ObjectId | null;
+  reviewedAt: Date | null;
+  reviewDecision: 'UPHOLD' | 'OVERTURN' | 'REFUND' | 'PUNISH_WITNESS' | 'PUNISH_DISPUTER' | null;
+  reviewNotes: string | null;
+  originalWinner: Types.ObjectId | null;
+  
   // Metadata
   completedAt: Date | null;
   settledAt: Date | null;
@@ -346,6 +354,36 @@ const challengeSchema = new Schema<IChallenge>(
     },
     disputedAt: {
       type: Date,
+      default: null
+    },
+    
+    // Admin Review
+    reviewStatus: {
+      type: String,
+      enum: ['NONE', 'PENDING_REVIEW', 'UNDER_REVIEW', 'RESOLVED'],
+      default: 'NONE'
+    },
+    reviewedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    reviewedAt: {
+      type: Date,
+      default: null
+    },
+    reviewDecision: {
+      type: String,
+      enum: ['UPHOLD', 'OVERTURN', 'REFUND', 'PUNISH_WITNESS', 'PUNISH_DISPUTER', null],
+      default: null
+    },
+    reviewNotes: {
+      type: String,
+      default: null
+    },
+    originalWinner: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
       default: null
     },
     

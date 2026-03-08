@@ -31,6 +31,13 @@ export interface IUser extends Document {
     totalEarnings: number;
     totalStaked: number;
   };
+  inappropriateDisputeCount: number;
+  lastDisputeResetDate: Date | null;
+  accountStatus: 'ACTIVE' | 'RESTRICTED' | 'SUSPENDED' | 'BANNED';
+  witnessReputation: number;
+  witnessStatus: 'ACTIVE' | 'SUSPENDED';
+  totalWitnessedMatches: number;
+  successfulWitnesses: number;
   isActive: boolean;
   isVerified: boolean;
   lastLogin: Date | null;

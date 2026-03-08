@@ -74,6 +74,38 @@ const userSchema = new Schema<IUser>(
       totalEarnings: { type: Number, default: 0 },
       totalStaked: { type: Number, default: 0 }
     },
+    inappropriateDisputeCount: {
+      type: Number,
+      default: 0
+    },
+    lastDisputeResetDate: {
+      type: Date,
+      default: null
+    },
+    accountStatus: {
+      type: String,
+      enum: ['ACTIVE', 'RESTRICTED', 'SUSPENDED', 'BANNED'],
+      default: 'ACTIVE'
+    },
+    witnessReputation: {
+      type: Number,
+      default: 100,
+      min: 0,
+      max: 100
+    },
+    witnessStatus: {
+      type: String,
+      enum: ['ACTIVE', 'SUSPENDED'],
+      default: 'ACTIVE'
+    },
+    totalWitnessedMatches: {
+      type: Number,
+      default: 0
+    },
+    successfulWitnesses: {
+      type: Number,
+      default: 0
+    },
     isActive: {
       type: Boolean,
       default: true
