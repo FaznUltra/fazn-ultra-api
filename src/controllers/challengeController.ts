@@ -476,7 +476,7 @@ export const volunteerAsWitness = asyncHandler(async (req: AuthRequest, res: Res
   // Notify both participants
   await Notification.create({
     userId: challenge.creator,
-    type: 'CHALLENGE_UPDATE',
+    type: 'CHALLENGE',
     title: 'Witness Assigned',
     message: `${req.user?.displayName} has volunteered to witness your challenge`,
     data: { challengeId: challenge._id }
@@ -485,7 +485,7 @@ export const volunteerAsWitness = asyncHandler(async (req: AuthRequest, res: Res
   if (challenge.acceptor) {
     await Notification.create({
       userId: challenge.acceptor,
-      type: 'CHALLENGE_UPDATE',
+      type: 'CHALLENGE',
       title: 'Witness Assigned',
       message: `${req.user?.displayName} has volunteered to witness your challenge`,
       data: { challengeId: challenge._id }
