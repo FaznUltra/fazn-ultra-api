@@ -6,6 +6,8 @@ import {
   getPublicChallenges,
   getFriendsChallenges,
   getWitnessingChallenges,
+  volunteerAsWitness,
+  getMyWitnessingChallenges,
   createChallenge,
   acceptChallenge,
   rejectChallenge,
@@ -30,6 +32,7 @@ router.get('/history', getChallengeHistory);
 router.get('/public', getPublicChallenges);
 router.get('/friends', getFriendsChallenges);
 router.get('/witnessing', getWitnessingChallenges);
+router.get('/my-witnessing', getMyWitnessingChallenges);
 router.get('/stats', getChallengeStats);
 router.get('/:id', getChallengeById);
 
@@ -40,6 +43,7 @@ router.post('/', createChallenge);
 router.post('/:id/accept', acceptChallenge);
 router.post('/:id/reject', rejectChallenge);
 router.post('/:id/cancel', cancelChallenge);
+router.post('/:id/volunteer-witness', volunteerAsWitness);
 router.patch('/:id/streaming-link', updateStreamingLink);
 
 // Result submission and settlement

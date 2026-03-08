@@ -414,6 +414,120 @@ export const getWitnessingChallenges = asyncHandler(async (req: AuthRequest, res
   });
 });
 
+// Volunteer as witness for a challenge
+export const volunteerAsWitness = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const userId = req.user?._id;
+  const { id } = req.params;
+
+  const challenge = await Challenge.findById(id);
+
+  if (!challenge) {
+    res.status(404).json({
+      success: false,
+      message: 'Challenge not found'
+    });
+    return;
+  }
+
+  // Verify challenge is in ACCEPTED status
+  if (challenge.status !== 'ACCEPTED') {
+    res.status(400).json({
+      success: false,
+      message: 'Challenge must be accepted before a witness can volunteer'
+    });
+    return;
+  }
+
+  // Verify challenge doesn't already have a witness
+  if (challenge.witness) {
+    res.status(400).json({
+      success: false,
+      message: 'This challenge already has a witness'
+    });
+    return;
+  }
+
+  // Verify user is not a participant
+  if (challenge.creator.toString() === userId?.toString() || 
+      challenge.acceptor?.toString() === userId?.toString()) {
+    res.status(400).json({
+      success: false,
+      message: 'Participants cannot be witnesses'
+    });
+    return;
+  }
+
+  // Verify match hasn't started yet
+  if (new Date(challenge.matchStartTime) <= new Date()) {
+    res.status(400).json({
+      success: false,
+      message: 'Cannot volunteer for a match that has already started'
+    });
+    return;
+  }
+
+  // Assign witness
+  challenge.witness = userId || null;
+  challenge.witnessUsername = req.user?.displayName || '';
+  challenge.witnessVerifiedAt = new Date();
+
+  await challenge.save();
+
+  // Notify both participants
+  await Notification.create({
+    userId: challenge.creator,
+    type: 'CHALLENGE_UPDATE',
+    title: 'Witness Assigned',
+    message: `${req.user?.displayName} has volunteered to witness your challenge`,
+    data: { challengeId: challenge._id }
+  });
+
+  if (challenge.acceptor) {
+    await Notification.create({
+      userId: challenge.acceptor,
+      type: 'CHALLENGE_UPDATE',
+      title: 'Witness Assigned',
+      message: `${req.user?.displayName} has volunteered to witness your challenge`,
+      data: { challengeId: challenge._id }
+    });
+  }
+
+  res.json({
+    success: true,
+    message: 'Successfully volunteered as witness',
+    data: { challenge }
+  });
+});
+
+// Get challenges user is witnessing
+export const getMyWitnessingChallenges = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const userId = req.user?._id;
+  const { limit = 20, page = 1 } = req.query;
+  const skip = (Number(page) - 1) * Number(limit);
+
+  const challenges = await Challenge.find({ witness: userId })
+    .populate('creator', 'displayName profileImage isVerified')
+    .populate('acceptor', 'displayName profileImage isVerified')
+    .sort({ matchStartTime: -1 })
+    .limit(Number(limit))
+    .skip(skip);
+
+  const total = await Challenge.countDocuments({ witness: userId });
+
+  res.json({
+    success: true,
+    data: {
+      challenges,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        pages: Math.ceil(total / Number(limit))
+      }
+    }
+  });
+});
+
 // Get friends challenges
 export const getFriendsChallenges = asyncHandler(async (req: AuthRequest, res: Response) => {
   const userId = req.user?._id;
