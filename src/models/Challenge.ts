@@ -8,10 +8,12 @@ export type ChallengeStatus =
   | 'OPEN' 
   | 'PENDING_ACCEPTANCE' 
   | 'ACCEPTED' 
+  | 'LIVE'
   | 'REJECTED' 
   | 'CANCELLED' 
   | 'REFUNDED' 
   | 'COMPLETED' 
+  | 'DISPUTED'
   | 'SETTLED';
 
 export interface IChallenge extends Document {
@@ -66,6 +68,13 @@ export interface IChallenge extends Document {
   acceptorJoinedRoom: boolean;
   matchStartedAt: Date | null;
   
+  // Flagging & Safety
+  isFlagged: boolean;
+  flaggedBy: Types.ObjectId | null;
+  flaggedByRole: 'CREATOR' | 'ACCEPTOR' | 'WITNESS' | null;
+  flagReason: string | null;
+  flaggedAt: Date | null;
+  
   // Results
   status: ChallengeStatus;
   winner: Types.ObjectId | null;
@@ -76,6 +85,13 @@ export interface IChallenge extends Document {
     creator: number | null;
     acceptor: number | null;
   };
+  
+  // Dispute Management
+  disputeDeadline: Date | null;
+  isDisputed: boolean;
+  disputedBy: Types.ObjectId | null;
+  disputeReason: string | null;
+  disputedAt: Date | null;
   
   // Metadata
   completedAt: Date | null;
@@ -250,10 +266,34 @@ const challengeSchema = new Schema<IChallenge>(
       default: null
     },
     
+    // Flagging & Safety
+    isFlagged: {
+      type: Boolean,
+      default: false
+    },
+    flaggedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    flaggedByRole: {
+      type: String,
+      enum: ['CREATOR', 'ACCEPTOR', 'WITNESS', null],
+      default: null
+    },
+    flagReason: {
+      type: String,
+      default: null
+    },
+    flaggedAt: {
+      type: Date,
+      default: null
+    },
+    
     // Results
     status: {
       type: String,
-      enum: ['OPEN', 'PENDING_ACCEPTANCE', 'ACCEPTED', 'REJECTED', 'CANCELLED', 'REFUNDED', 'COMPLETED', 'SETTLED'],
+      enum: ['OPEN', 'PENDING_ACCEPTANCE', 'ACCEPTED', 'LIVE', 'REJECTED', 'CANCELLED', 'REFUNDED', 'COMPLETED', 'DISPUTED', 'SETTLED'],
       default: 'OPEN',
       index: true
     },
@@ -284,6 +324,29 @@ const challengeSchema = new Schema<IChallenge>(
         type: Number,
         default: null
       }
+    },
+    
+    // Dispute Management
+    disputeDeadline: {
+      type: Date,
+      default: null
+    },
+    isDisputed: {
+      type: Boolean,
+      default: false
+    },
+    disputedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    disputeReason: {
+      type: String,
+      default: null
+    },
+    disputedAt: {
+      type: Date,
+      default: null
     },
     
     // Metadata

@@ -759,6 +759,7 @@ export const startMatch = asyncHandler(async (req: AuthRequest, res: Response) =
 
   // Start the match
   challenge.matchStartedAt = new Date();
+  challenge.status = 'LIVE';
   await challenge.save();
 
   // Notify both participants
@@ -783,6 +784,371 @@ export const startMatch = asyncHandler(async (req: AuthRequest, res: Response) =
   res.json({
     success: true,
     message: 'Match started successfully',
+    data: { challenge }
+  });
+});
+
+// Flag match for suspicious activity
+export const flagMatch = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const userId = req.user?._id;
+  const { id } = req.params;
+  const { reason } = req.body;
+
+  if (!reason || reason.trim().length < 10) {
+    res.status(400).json({
+      success: false,
+      message: 'Please provide a detailed reason for flagging (minimum 10 characters)'
+    });
+    return;
+  }
+
+  const challenge = await Challenge.findById(id);
+
+  if (!challenge) {
+    res.status(404).json({
+      success: false,
+      message: 'Challenge not found'
+    });
+    return;
+  }
+
+  // Verify user is a participant or witness
+  const isCreator = challenge.creator.toString() === userId?.toString();
+  const isAcceptor = challenge.acceptor?.toString() === userId?.toString();
+  const isWitness = challenge.witness?.toString() === userId?.toString();
+
+  if (!isCreator && !isAcceptor && !isWitness) {
+    res.status(403).json({
+      success: false,
+      message: 'Only participants or witness can flag this match'
+    });
+    return;
+  }
+
+  // Verify match is in a flaggable state (LIVE or COMPLETED)
+  if (challenge.status !== 'LIVE' && challenge.status !== 'COMPLETED') {
+    res.status(400).json({
+      success: false,
+      message: 'Match can only be flagged when it is live or completed'
+    });
+    return;
+  }
+
+  // Check if already flagged
+  if (challenge.isFlagged) {
+    res.status(400).json({
+      success: false,
+      message: 'This match has already been flagged'
+    });
+    return;
+  }
+
+  // Determine user role
+  let role: 'CREATOR' | 'ACCEPTOR' | 'WITNESS';
+  if (isCreator) role = 'CREATOR';
+  else if (isAcceptor) role = 'ACCEPTOR';
+  else role = 'WITNESS';
+
+  // Flag the match
+  challenge.isFlagged = true;
+  challenge.flaggedBy = userId || null;
+  challenge.flaggedByRole = role;
+  challenge.flagReason = reason.trim();
+  challenge.flaggedAt = new Date();
+  await challenge.save();
+
+  // Notify admin/support team (you can implement this later)
+  // For now, notify all participants
+  const notificationMessage = `Match has been flagged by ${role.toLowerCase()} for review: ${reason.substring(0, 50)}...`;
+
+  if (!isCreator && challenge.creator) {
+    await Notification.create({
+      userId: challenge.creator,
+      type: 'CHALLENGE',
+      title: 'Match Flagged',
+      message: notificationMessage,
+      data: { challengeId: challenge._id }
+    });
+  }
+
+  if (!isAcceptor && challenge.acceptor) {
+    await Notification.create({
+      userId: challenge.acceptor,
+      type: 'CHALLENGE',
+      title: 'Match Flagged',
+      message: notificationMessage,
+      data: { challengeId: challenge._id }
+    });
+  }
+
+  if (!isWitness && challenge.witness) {
+    await Notification.create({
+      userId: challenge.witness,
+      type: 'CHALLENGE',
+      title: 'Match Flagged',
+      message: notificationMessage,
+      data: { challengeId: challenge._id }
+    });
+  }
+
+  res.json({
+    success: true,
+    message: 'Match flagged successfully. Our team will review this case.',
+    data: { challenge }
+  });
+});
+
+// Complete match (witness only)
+export const completeMatch = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const userId = req.user?._id;
+  const { id } = req.params;
+  const { creatorScore, acceptorScore } = req.body;
+
+  // Validate scores
+  if (typeof creatorScore !== 'number' || typeof acceptorScore !== 'number') {
+    res.status(400).json({
+      success: false,
+      message: 'Both creator and acceptor scores must be provided as numbers'
+    });
+    return;
+  }
+
+  if (creatorScore < 0 || acceptorScore < 0) {
+    res.status(400).json({
+      success: false,
+      message: 'Scores cannot be negative'
+    });
+    return;
+  }
+
+  if (creatorScore > 99 || acceptorScore > 99) {
+    res.status(400).json({
+      success: false,
+      message: 'Scores seem unrealistic. Please verify and try again.'
+    });
+    return;
+  }
+
+  const challenge = await Challenge.findById(id);
+
+  if (!challenge) {
+    res.status(404).json({
+      success: false,
+      message: 'Challenge not found'
+    });
+    return;
+  }
+
+  // Verify user is the witness
+  if (challenge.witness?.toString() !== userId?.toString()) {
+    res.status(403).json({
+      success: false,
+      message: 'Only the assigned witness can complete this match'
+    });
+    return;
+  }
+
+  // Verify match is live
+  if (challenge.status !== 'LIVE') {
+    res.status(400).json({
+      success: false,
+      message: 'Match must be in LIVE status to be completed'
+    });
+    return;
+  }
+
+  // Verify match has been started
+  if (!challenge.matchStartedAt) {
+    res.status(400).json({
+      success: false,
+      message: 'Match has not been started yet'
+    });
+    return;
+  }
+
+  // Check if match is flagged
+  if (challenge.isFlagged) {
+    res.status(400).json({
+      success: false,
+      message: 'This match has been flagged and cannot be completed until reviewed'
+    });
+    return;
+  }
+
+  // Determine winner
+  let winnerId: typeof challenge.creator | null = null;
+  let winnerUsername = '';
+  let loserId: typeof challenge.creator | null = null;
+  let loserUsername = '';
+
+  if (creatorScore > acceptorScore) {
+    winnerId = challenge.creator;
+    winnerUsername = challenge.creatorUsername;
+    loserId = challenge.acceptor;
+    loserUsername = challenge.acceptorUsername || '';
+  } else if (acceptorScore > creatorScore) {
+    winnerId = challenge.acceptor;
+    winnerUsername = challenge.acceptorUsername || '';
+    loserId = challenge.creator;
+    loserUsername = challenge.creatorUsername;
+  }
+  // If scores are equal, it's a draw - no winner
+
+  // Update challenge
+  challenge.status = 'COMPLETED';
+  challenge.completedAt = new Date();
+  challenge.finalScore = {
+    creator: creatorScore,
+    acceptor: acceptorScore
+  };
+  challenge.winner = winnerId;
+  challenge.winnerUsername = winnerUsername;
+  challenge.loser = loserId;
+  challenge.loserUsername = loserUsername;
+  
+  // Set dispute deadline to 10 minutes from now
+  challenge.disputeDeadline = new Date(Date.now() + 10 * 60 * 1000);
+  
+  await challenge.save();
+
+  // Notify both players
+  const resultMessage = winnerId 
+    ? `Match completed! ${winnerUsername} won ${creatorScore}-${acceptorScore}. You have 10 minutes to dispute if needed.`
+    : `Match completed! It's a draw ${creatorScore}-${acceptorScore}. You have 10 minutes to dispute if needed.`;
+
+  await Notification.create({
+    userId: challenge.creator,
+    type: 'CHALLENGE',
+    title: 'Match Completed',
+    message: resultMessage,
+    data: { challengeId: challenge._id }
+  });
+
+  if (challenge.acceptor) {
+    await Notification.create({
+      userId: challenge.acceptor,
+      type: 'CHALLENGE',
+      title: 'Match Completed',
+      message: resultMessage,
+      data: { challengeId: challenge._id }
+    });
+  }
+
+  res.json({
+    success: true,
+    message: 'Match completed successfully. Players have 10 minutes to dispute.',
+    data: { challenge }
+  });
+});
+
+// Dispute match result (players only)
+export const disputeMatch = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const userId = req.user?._id;
+  const { id } = req.params;
+  const { reason } = req.body;
+
+  if (!reason || reason.trim().length < 20) {
+    res.status(400).json({
+      success: false,
+      message: 'Please provide a detailed reason for the dispute (minimum 20 characters)'
+    });
+    return;
+  }
+
+  const challenge = await Challenge.findById(id);
+
+  if (!challenge) {
+    res.status(404).json({
+      success: false,
+      message: 'Challenge not found'
+    });
+    return;
+  }
+
+  // Verify user is creator or acceptor
+  const isCreator = challenge.creator.toString() === userId?.toString();
+  const isAcceptor = challenge.acceptor?.toString() === userId?.toString();
+
+  if (!isCreator && !isAcceptor) {
+    res.status(403).json({
+      success: false,
+      message: 'Only players can dispute match results'
+    });
+    return;
+  }
+
+  // Verify match is completed
+  if (challenge.status !== 'COMPLETED') {
+    res.status(400).json({
+      success: false,
+      message: 'Only completed matches can be disputed'
+    });
+    return;
+  }
+
+  // Verify within dispute window
+  if (!challenge.disputeDeadline || new Date() > challenge.disputeDeadline) {
+    res.status(400).json({
+      success: false,
+      message: 'Dispute window has expired. Match will be settled automatically.'
+    });
+    return;
+  }
+
+  // Check if already disputed
+  if (challenge.isDisputed) {
+    res.status(400).json({
+      success: false,
+      message: 'This match has already been disputed'
+    });
+    return;
+  }
+
+  // Create dispute
+  challenge.isDisputed = true;
+  challenge.disputedBy = userId || null;
+  challenge.disputeReason = reason.trim();
+  challenge.disputedAt = new Date();
+  challenge.status = 'DISPUTED';
+  await challenge.save();
+
+  // Notify other player and witness
+  const disputerName = isCreator ? challenge.creatorUsername : challenge.acceptorUsername;
+  const disputeMessage = `${disputerName} has disputed the match result. Admin review required.`;
+
+  if (!isCreator && challenge.creator) {
+    await Notification.create({
+      userId: challenge.creator,
+      type: 'CHALLENGE',
+      title: 'Match Disputed',
+      message: disputeMessage,
+      data: { challengeId: challenge._id }
+    });
+  }
+
+  if (!isAcceptor && challenge.acceptor) {
+    await Notification.create({
+      userId: challenge.acceptor,
+      type: 'CHALLENGE',
+      title: 'Match Disputed',
+      message: disputeMessage,
+      data: { challengeId: challenge._id }
+    });
+  }
+
+  if (challenge.witness) {
+    await Notification.create({
+      userId: challenge.witness,
+      type: 'CHALLENGE',
+      title: 'Match Disputed',
+      message: `Your witnessed match has been disputed by ${disputerName}. Admin will review.`,
+      data: { challengeId: challenge._id }
+    });
+  }
+
+  res.json({
+    success: true,
+    message: 'Dispute submitted successfully. Our team will review this case.',
     data: { challenge }
   });
 });

@@ -16,6 +16,9 @@ import {
   shareRoomCode,
   confirmJoinedRoom,
   startMatch,
+  flagMatch,
+  completeMatch,
+  disputeMatch,
   submitResult,
   settleChallenge,
   getChallengeStats
@@ -53,6 +56,11 @@ router.patch('/:id/streaming-link', updateStreamingLink);
 router.post('/:id/share-room-code', shareRoomCode);
 router.post('/:id/confirm-joined', confirmJoinedRoom);
 router.post('/:id/start-match', startMatch);
+
+// Match management
+router.post('/:id/flag', flagMatch);
+router.post('/:id/complete', completeMatch);
+router.post('/:id/dispute', disputeMatch);
 
 // Result submission and settlement
 router.post('/:id/result', submitResult);
