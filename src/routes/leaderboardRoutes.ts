@@ -13,12 +13,10 @@ import {
   getRecentHighlights,
   getRisingStars
 } from '../controllers/leaderboardController';
-import { protect } from '../middlewares/auth';
 
 const router = express.Router();
 
-// All routes are protected (require authentication)
-router.use(protect);
+// All leaderboard routes are PUBLIC (no authentication required)
 
 // ══════════════════════════════════════════════════════════════════════════════
 // LEADERBOARDS
