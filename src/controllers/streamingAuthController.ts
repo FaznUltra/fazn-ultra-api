@@ -7,7 +7,7 @@ import asyncHandler from '../utils/asyncHandler';
 // YouTube OAuth
 export const youtubeAuth = asyncHandler(async (req: AuthRequest, res: Response) => {
   const clientId = process.env.YOUTUBE_CLIENT_ID;
-  const redirectUri = `${process.env.API_URL}/streaming/youtube/callback`;
+  const redirectUri = `${process.env.API_URL}/api/v1/streaming/youtube/callback`;
   const scope = 'https://www.googleapis.com/auth/youtube.readonly';
   
   const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
@@ -38,7 +38,7 @@ export const youtubeCallback = asyncHandler(async (req: Request, res: Response) 
       code,
       client_id: process.env.YOUTUBE_CLIENT_ID,
       client_secret: process.env.YOUTUBE_CLIENT_SECRET,
-      redirect_uri: `${process.env.API_URL}/streaming/youtube/callback`,
+      redirect_uri: `${process.env.API_URL}/api/v1/streaming/youtube/callback`,
       grant_type: 'authorization_code'
     });
 
@@ -81,7 +81,7 @@ export const youtubeCallback = asyncHandler(async (req: Request, res: Response) 
 // Twitch OAuth
 export const twitchAuth = asyncHandler(async (req: AuthRequest, res: Response) => {
   const clientId = process.env.TWITCH_CLIENT_ID;
-  const redirectUri = `${process.env.API_URL}/streaming/twitch/callback`;
+  const redirectUri = `${process.env.API_URL}/api/v1/streaming/twitch/callback`;
   const scope = 'user:read:email';
   
   const authUrl = `https://id.twitch.tv/oauth2/authorize?` +
@@ -111,7 +111,7 @@ export const twitchCallback = asyncHandler(async (req: Request, res: Response) =
       client_secret: process.env.TWITCH_CLIENT_SECRET,
       code,
       grant_type: 'authorization_code',
-      redirect_uri: `${process.env.API_URL}/streaming/twitch/callback`
+      redirect_uri: `${process.env.API_URL}/api/v1/streaming/twitch/callback`
     });
 
     const { access_token, refresh_token } = tokenResponse.data;
