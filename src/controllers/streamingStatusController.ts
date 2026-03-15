@@ -27,16 +27,14 @@ export const getYoutubeLiveStatus = asyncHandler(async (req: AuthRequest, res: R
   }
 
   try {
-    // Search for live broadcasts on the channel
+    // Use liveBroadcasts endpoint to get active broadcasts
     const response = await axios.get(
-      'https://www.googleapis.com/youtube/v3/search',
+      'https://www.googleapis.com/youtube/v3/liveBroadcasts',
       {
         params: {
-          part: 'snippet',
-          channelId: channelId,
-          eventType: 'live',
-          type: 'video',
-          key: process.env.YOUTUBE_API_KEY // You'll need to add this to .env
+          part: 'snippet,status',
+          broadcastStatus: 'active',
+          broadcastType: 'all'
         },
         headers: {
           Authorization: `Bearer ${accessToken}`
@@ -44,18 +42,22 @@ export const getYoutubeLiveStatus = asyncHandler(async (req: AuthRequest, res: R
       }
     );
 
-    const liveVideos = response.data.items || [];
+    const liveBroadcasts = response.data.items || [];
     
-    if (liveVideos.length > 0) {
-      const liveVideo = liveVideos[0];
+    if (liveBroadcasts.length > 0) {
+      const liveBroadcast = liveBroadcasts[0];
+      
+      // Get the video ID from the broadcast
+      const videoId = liveBroadcast.id;
+      
       res.json({
         success: true,
         data: {
           isLive: true,
-          streamUrl: `https://www.youtube.com/watch?v=${liveVideo.id.videoId}`,
-          title: liveVideo.snippet.title,
-          thumbnail: liveVideo.snippet.thumbnails?.medium?.url,
-          startedAt: liveVideo.snippet.publishedAt
+          streamUrl: `https://www.youtube.com/watch?v=${videoId}`,
+          title: liveBroadcast.snippet.title,
+          thumbnail: liveBroadcast.snippet.thumbnails?.medium?.url || liveBroadcast.snippet.thumbnails?.default?.url,
+          startedAt: liveBroadcast.snippet.actualStartTime || liveBroadcast.snippet.scheduledStartTime
         }
       });
     } else {
