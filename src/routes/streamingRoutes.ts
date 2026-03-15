@@ -7,6 +7,10 @@ import {
   disconnectYoutube,
   disconnectTwitch
 } from '../controllers/streamingAuthController';
+import {
+  getYoutubeLiveStatus,
+  getTwitchLiveStatus
+} from '../controllers/streamingStatusController';
 import { protect } from '../middlewares/auth';
 
 const router = Router();
@@ -20,5 +24,9 @@ router.delete('/youtube/disconnect', protect, disconnectYoutube);
 router.get('/twitch/auth', protect, twitchAuth);
 router.get('/twitch/callback', twitchCallback);
 router.delete('/twitch/disconnect', protect, disconnectTwitch);
+
+// Live status routes
+router.get('/youtube/live-status', protect, getYoutubeLiveStatus);
+router.get('/twitch/live-status', protect, getTwitchLiveStatus);
 
 export default router;

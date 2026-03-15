@@ -15,13 +15,21 @@ export interface IUser extends Document {
       channelUrl: string | null;
       channelId: string | null;
       channelName: string | null;
+      profileImage: string | null;
+      subscriberCount: number;
       verified: boolean;
+      accessToken: string | null;
+      refreshToken: string | null;
     };
     twitch: {
       channelUrl: string | null;
       channelId: string | null;
       channelName: string | null;
+      profileImage: string | null;
+      followerCount: number;
       verified: boolean;
+      accessToken: string | null;
+      refreshToken: string | null;
     };
   };
   stats: {
