@@ -28,8 +28,12 @@ export const youtubeAuth = asyncHandler(async (req: AuthRequest, res: Response) 
 export const youtubeCallback = asyncHandler(async (req: Request, res: Response) => {
   const { code, state: userId } = req.query;
 
+  // Detect if request is from web or mobile
+  const isWeb = req.headers['user-agent']?.includes('Mozilla') || req.headers.referer?.includes('localhost:3000');
+  const baseUrl = isWeb ? (process.env.WEB_URL || 'http://localhost:3000') : process.env.FRONTEND_URL;
+
   if (!code || !userId) {
-    return res.redirect(`${process.env.FRONTEND_URL}/edit-profile?error=missing_params`);
+    return res.redirect(`${baseUrl}/edit-profile?error=missing_params`);
   }
 
   try {
@@ -54,7 +58,7 @@ export const youtubeCallback = asyncHandler(async (req: Request, res: Response) 
 
     const channel = channelResponse.data.items?.[0];
     if (!channel) {
-      return res.redirect(`${process.env.FRONTEND_URL}/edit-profile?error=no_channel`);
+      return res.redirect(`${baseUrl}/edit-profile?error=no_channel`);
     }
 
     // Update user with YouTube info
@@ -71,10 +75,10 @@ export const youtubeCallback = asyncHandler(async (req: Request, res: Response) 
       }
     });
 
-    res.redirect(`${process.env.FRONTEND_URL}/edit-profile?youtube=success`);
+    res.redirect(`${baseUrl}/edit-profile?youtube=success`);
   } catch (error: any) {
     console.error('YouTube OAuth error:', error.response?.data || error.message);
-    res.redirect(`${process.env.FRONTEND_URL}/edit-profile?error=youtube_auth_failed`);
+    res.redirect(`${baseUrl}/edit-profile?error=youtube_auth_failed`);
   }
 });
 
@@ -100,8 +104,12 @@ export const twitchAuth = asyncHandler(async (req: AuthRequest, res: Response) =
 export const twitchCallback = asyncHandler(async (req: Request, res: Response) => {
   const { code, state: userId } = req.query;
 
+  // Detect if request is from web or mobile
+  const isWeb = req.headers['user-agent']?.includes('Mozilla') || req.headers.referer?.includes('localhost:3000');
+  const baseUrl = isWeb ? (process.env.WEB_URL || 'http://localhost:3000') : process.env.FRONTEND_URL;
+
   if (!code || !userId) {
-    return res.redirect(`${process.env.FRONTEND_URL}/edit-profile?error=missing_params`);
+    return res.redirect(`${baseUrl}/edit-profile?error=missing_params`);
   }
 
   try {
@@ -126,7 +134,7 @@ export const twitchCallback = asyncHandler(async (req: Request, res: Response) =
 
     const twitchUser = userResponse.data.data?.[0];
     if (!twitchUser) {
-      return res.redirect(`${process.env.FRONTEND_URL}/edit-profile?error=no_twitch_user`);
+      return res.redirect(`${baseUrl}/edit-profile?error=no_twitch_user`);
     }
 
     // Get follower count
@@ -160,10 +168,10 @@ export const twitchCallback = asyncHandler(async (req: Request, res: Response) =
       }
     });
 
-    res.redirect(`${process.env.FRONTEND_URL}/edit-profile?twitch=success`);
+    res.redirect(`${baseUrl}/edit-profile?twitch=success`);
   } catch (error: any) {
     console.error('Twitch OAuth error:', error.response?.data || error.message);
-    res.redirect(`${process.env.FRONTEND_URL}/edit-profile?error=twitch_auth_failed`);
+    res.redirect(`${baseUrl}/edit-profile?error=twitch_auth_failed`);
   }
 });
 
