@@ -17,7 +17,12 @@ export const googleAuth = passport.authenticate('google', {
 export const googleAuthCallback = (req: Request, res: Response, next: NextFunction) => {
   passport.authenticate('google', { session: false }, (err: any, user: IUser) => {
     if (err || !user) {
-      return res.redirect(`${process.env.FRONTEND_URL}auth/error?message=Authentication failed`);
+      // Check if request is from web or mobile based on user agent or referer
+      const isWeb = req.headers['user-agent']?.includes('Mozilla') || req.headers.referer?.includes('localhost:3000');
+      const errorUrl = isWeb 
+        ? `${process.env.WEB_URL || 'http://localhost:3000'}/sign-in?error=Authentication failed`
+        : `${process.env.FRONTEND_URL}auth/error?message=Authentication failed`;
+      return res.redirect(errorUrl);
     }
 
     const payload = {
@@ -29,8 +34,12 @@ export const googleAuthCallback = (req: Request, res: Response, next: NextFuncti
     const token = generateToken(payload);
     const refreshToken = generateRefreshToken(payload);
 
-    // Use Expo's redirect proxy for Expo Go compatibility
-    const redirectUrl = `${process.env.FRONTEND_URL}auth/google-callback?token=${token}&refreshToken=${refreshToken}`;
+    // Check if request is from web or mobile
+    const isWeb = req.headers['user-agent']?.includes('Mozilla') || req.headers.referer?.includes('localhost:3000');
+    
+    const redirectUrl = isWeb
+      ? `${process.env.WEB_URL || 'http://localhost:3000'}/google-callback?token=${token}&refreshToken=${refreshToken}`
+      : `${process.env.FRONTEND_URL}auth/google-callback?token=${token}&refreshToken=${refreshToken}`;
     
     return res.redirect(redirectUrl);
   })(req, res, next);
