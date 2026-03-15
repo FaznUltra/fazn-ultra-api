@@ -1363,11 +1363,15 @@ export const acceptChallenge = asyncHandler(async (req: AuthRequest, res: Respon
     return;
   }
 
-  // Require streaming link when accepting
-  if (!acceptorStreamingLink || !acceptorStreamingLink.platform || !acceptorStreamingLink.url) {
+  // Verify user has at least one connected streaming account
+  const acceptorUser = await User.findById(userId);
+  const hasStreamingAccount = acceptorUser?.streamingAccounts?.youtube?.verified || 
+                              acceptorUser?.streamingAccounts?.twitch?.verified;
+  
+  if (!hasStreamingAccount) {
     res.status(400).json({
       success: false,
-      message: 'Streaming link is required to accept a challenge'
+      message: 'You must connect a streaming account (YouTube or Twitch) before accepting challenges'
     });
     return;
   }
