@@ -6,7 +6,7 @@ import asyncHandler from '../utils/asyncHandler';
 
 // Check if YouTube channel is currently live
 export const getYoutubeLiveStatus = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = await User.findById(req.user?._id);
+  const user = await User.findById(req.user?._id).select('+streamingAccounts.youtube.accessToken');
 
   if (!user || !user.streamingAccounts?.youtube?.verified) {
     res.status(400).json({
@@ -79,7 +79,7 @@ export const getYoutubeLiveStatus = asyncHandler(async (req: AuthRequest, res: R
 
 // Check if Twitch channel is currently live
 export const getTwitchLiveStatus = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = await User.findById(req.user?._id);
+  const user = await User.findById(req.user?._id).select('+streamingAccounts.twitch.accessToken');
 
   if (!user || !user.streamingAccounts?.twitch?.verified) {
     res.status(400).json({
